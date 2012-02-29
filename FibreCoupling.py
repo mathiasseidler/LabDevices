@@ -4,9 +4,9 @@ Created on Feb 15, 2012
 @author: Mathias Seidler
 '''
 
-from LabDevices.Thorlabs_PM100D import Thorlabs_PM100D
-from LabDevices.NEWPORT_AG_UC2 import NEWPORT_AG_UC2
-from LabDevices.LabDeviceExceptions import Error
+from Devices.Thorlabs_PM100D import Thorlabs_PM100D
+from Devices.NEWPORT_AG_UC2 import NEWPORT_AG_UC2
+from Devices.LabDeviceExceptions import Error
 
 import numpy as np
 

@@ -10,10 +10,9 @@ from enthought.chaco.api import Plot, create_line_plot,LinePlot, \
 from enthought.enable.component_editor import ComponentEditor
 from enthought.chaco.chaco_plot_editor import ChacoPlotItem
 
-import threading
 from threading import Thread
 from FibreCoupling import TransStage
-from LabDevices.Thorlabs_PM100D import Thorlabs_PM100D
+from Devices.Thorlabs_PM100D import Thorlabs_PM100D
 from enthought.pyface.timer.api import Timer
 
 import numpy as np

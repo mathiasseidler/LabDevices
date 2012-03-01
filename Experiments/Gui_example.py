@@ -23,7 +23,7 @@ import numpy as np
 class FieldData ( HasTraits ):
     """ Data and Index of the field
     """  
-    # A name:
+    __slots__ = 'intensity_map','data', 'index'
     intensity_map = Array
     data = Array
     index = Array
@@ -34,7 +34,7 @@ class CaptureThread(Thread):
             power_meter  = Thorlabs_PM100D("PM100D")
             stage       = TransStage('COM3')   
         except:
-            print "Devices not available"
+            print "Exception raised: Devices not available"
             
         while not self.wants_abort:
                 #data_power[i]=powermeter.getPower()

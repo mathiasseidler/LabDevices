@@ -34,8 +34,10 @@ class NEWPORT_AG_UC2(object):
         try:
             self.port = port
             self.device = visa.SerialInstrument(self.port, baud_rate=921600)
-            self.setToRemoteControl()
             print self.device.ask('VE').strip()
+            print self.getAxisStatus(1)
+            self.setToRemoteControl()
+
         except:
             print 'Unexpected error: ', sys.exc_info()[0]
           
@@ -150,5 +152,5 @@ class PreviousCommandError(Error):
     }
     
     def __init__(self, ErrorCode):
-        print("Errorcode: " + ErrorCode)
+        print("Errorcode: " + ErrorCode + ", Errormessage: " + self.dictErrorCode.get(ErrorCode))
         self.msg=self.dictErrorCode.get(ErrorCode)

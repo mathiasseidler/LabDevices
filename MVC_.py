@@ -14,6 +14,7 @@ from enthought.chaco.api import ArrayDataSource, ArrayPlotData, ColorBar, Contou
                                  DataRange2D, GridMapper, GridDataSource, \
                                  HPlotContainer, ImageData, LinearMapper, \
                                  LinePlot, OverlayPlotContainer, Plot, PlotAxis
+                                 
 from enthought.chaco.default_colormaps import *
 from enthought.enable.component_editor import ComponentEditor
 from enthought.chaco.tools.api import LineInspector, PanTool, RangeSelection, \
@@ -48,6 +49,7 @@ class Model(HasTraits):
     minz = Float
     maxz = Float
     model_changed = Event
+    
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)
         self.compute_model()
@@ -80,6 +82,7 @@ class Model(HasTraits):
         if name in ['function', 'npts_x', 'npts_y', 
                     'min_x', 'max_x', 'min_y', 'max_y']:
             self.compute_model() 
+            
 class PlotUI(HasTraits):
     #Traits view definitions:
     traits_view = View(
@@ -192,8 +195,9 @@ class PlotUI(HasTraits):
                              name="dot",
                              color_mapper=self._cmap(image_value_range),
                              marker="circle", 
-                             marker_size=8)
+                             marker_size=4)
         self.cross_plot.index_range = self.polyplot.index_range.x_range
+        
         self.pd.set_data("line_index2", array([])) 
         self.pd.set_data("line_value2", array([])) 
         self.pd.set_data("scatter_index2", array([])) 
@@ -207,18 +211,20 @@ class PlotUI(HasTraits):
                              name="dot",
                              color_mapper=self._cmap(image_value_range),
                              marker="circle", 
-                             marker_size=8)
+                             marker_size=4)
         self.cross_plot2.index_range = self.polyplot.index_range.y_range
        
         # Create a container and add components
         self.container = HPlotContainer(padding=40, fill_padding=True,
                                         bgcolor = "white", use_backbuffer=False)
         inner_cont = VPlotContainer(padding=0, use_backbuffer=True)
+        
         inner_cont.add(self.cross_plot)
         inner_cont.add(contour_container)
         self.container.add(self.colorbar)
         self.container.add(inner_cont)
         self.container.add(self.cross_plot2)
+        
     def update(self, model):
         self.minz = model.minz
         self.maxz = model.maxz
@@ -243,30 +249,26 @@ class PlotUI(HasTraits):
         self.cross_plot.value_range.high = self.maxz
         self.cross_plot2.value_range.low = self.minz
         self.cross_plot2.value_range.high = self.maxz
+        
         if self._image_index.metadata.has_key("selections"):
             x_ndx, y_ndx = self._image_index.metadata["selections"]
             if y_ndx and x_ndx:
-                self.pd.set_data("line_value", 
-                                 self._image_value.data[y_ndx,:])
-                self.pd.set_data("line_value2", 
-                                 self._image_value.data[:,x_ndx])
+                self.pd.set_data("line_value", self._image_value.data[y_ndx,:])
+                self.pd.set_data("line_value2", self._image_value.data[:,x_ndx])
                 xdata, ydata = self._image_index.get_data()
                 xdata, ydata = xdata.get_data(), ydata.get_data()
                 self.pd.set_data("scatter_index", array([xdata[x_ndx]]))
                 self.pd.set_data("scatter_index2", array([ydata[y_ndx]]))
-                self.pd.set_data("scatter_value",
-                    array([self._image_value.data[y_ndx, x_ndx]]))
-                self.pd.set_data("scatter_value2",
-                    array([self._image_value.data[y_ndx, x_ndx]]))
-                self.pd.set_data("scatter_color",
-                    array([self._image_value.data[y_ndx, x_ndx]]))
-                self.pd.set_data("scatter_color2",
-                    array([self._image_value.data[y_ndx, x_ndx]]))
+                self.pd.set_data("scatter_value", array([self._image_value.data[y_ndx, x_ndx]]))
+                self.pd.set_data("scatter_value2", array([self._image_value.data[y_ndx, x_ndx]]))
+                self.pd.set_data("scatter_color", array([self._image_value.data[y_ndx, x_ndx]]))
+                self.pd.set_data("scatter_color2", array([self._image_value.data[y_ndx, x_ndx]]))
         else:
             self.pd.set_data("scatter_value", array([]))
             self.pd.set_data("scatter_value2", array([]))
             self.pd.set_data("line_value", array([]))
             self.pd.set_data("line_value2", array([]))
+            
     def _colormap_changed(self):
         self._cmap = color_map_name_dict[self.colormap]
         if hasattr(self, "polyplot"):
@@ -313,8 +315,9 @@ class ModelView(HasTraits):
    
     model = Instance(Model)
     view = Instance(PlotUI)
+    
     traits_view = View(Item('@view', 
-                            show_label=False),
+                            show_label=False, menu=Action(name='Save',action='_save_to_file')),
                        menubar=MenuBar(Menu(Action(name="Edit Model",
                                                    action="edit_model"),
                                             Action(name="Edit Plot",
@@ -333,9 +336,12 @@ class ModelView(HasTraits):
 options_dict = {'colormap' : "jet", 
                 'num_levels' : 15,
                 'function' : "tanh(x**2+y)*cos(y)*jn(0,x+y*2)"}
-model=Model(**options_dict)
-view=PlotUI(**options_dict)
-popup = ModelView(model=model, view=view)
+#===============================================================================
+# model=Model(**options_dict)
+# view=PlotUI(**options_dict)
+# popup = ModelView(model=model, view=view)
+#===============================================================================
+
 def show_plot(**kwargs):
     model = Model(**kwargs)
     view = PlotUI(**kwargs)
@@ -363,4 +369,5 @@ def main(argv=None):
     show_plot(colormap=opts.colormap, num_levels=opts.num_levels,
               function=opts.function)
 if __name__ == "__main__":
+
     sys.exit(main())

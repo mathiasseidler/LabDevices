@@ -92,7 +92,7 @@ class FieldDataController(HasTraits):
     capture_thread=Instance(CaptureThread) 
     label_button_measurment = Str('Start acquisition')
     
-    _save_file = File
+    _save_file = File('default.npy')
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])
     # Define the view associated with this controller:
     view = View(Item('thread_control' , label="Acquisition", editor = ButtonEditor(label_value = 'label_button_measurment')),
@@ -186,7 +186,6 @@ class FieldDataController(HasTraits):
         Callback for the 'Save Image' menu option.
         """
         ui = self.edit_traits(view='save_file_view')
-        ui.edit_traits()
         if ui.result == True:
             save(self._save_file, self.model.intensity_map)
             

@@ -31,13 +31,12 @@ from time import sleep
 from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
 
-from numpy import array, linspace, meshgrid, nanmin, nanmax,  pi, zeros, ones, save
+from numpy import array, linspace, meshgrid, nanmin, nanmax,  pi, zeros, ones, save, load
 
 from enthought.chaco.tools.api import LineInspector, PanTool, RangeSelection, \
                                    RangeSelectionOverlay, ZoomTool, DragZoom
                                    
 from enthought.traits.api import File
-from enthought.traits.ui.file_dialog import open_file
 
 
 class FieldData(HasTraits):
@@ -90,13 +89,14 @@ class FieldDataController(HasTraits):
     label_button_measurment = Str('Start acquisition')
     
     _save_file = File
+    _load_file = File
     # Define the view associated with this controller:
     view = View(Item('thread_control' , label="Acquisition", editor = ButtonEditor(label_value = 'label_button_measurment')),
                 'step_amplitude',
                 Item('plot',editor=ComponentEditor(),show_label=False),
                 menubar=MenuBar(
-                   Menu(Action(name="Save Plot", action="save"), # see Controller for
-                        Action(name="Load Plot", action="load"), # these callbacks
+                   Menu(Action(name="Load Plot", action="load"),
+                        Action(name="Save Plot", action="save"), 
                         Separator(),
                         CloseAction,
                         name="File")),
@@ -104,6 +104,13 @@ class FieldDataController(HasTraits):
     
     save_file_view = View(
         Item('_save_file'), 
+        buttons=OKCancelButtons, 
+        kind='livemodal',  # NB must use livemodal, plot objects don't copy well
+        width=400,
+        resizable=True,
+    )
+    load_file_view = View(
+        Item('_load_file'), 
         buttons=OKCancelButtons, 
         kind='livemodal',  # NB must use livemodal, plot objects don't copy well
         width=400,
@@ -170,9 +177,9 @@ class FieldDataController(HasTraits):
             self.capture_thread.stepamplitude = self.step_amplitude
             
     @on_trait_change('model.intensity_map')        
-    def updatePlot(self,object,name,old,new):
+    def updatePlot(self,name,old,new):
         if self.plot_data:
-            self.plot_data.set_data('imagedata',object.intensity_map)
+            self.plot_data.set_data('imagedata',self.model.intensity_map)
 
     def save(self):
         """
@@ -181,6 +188,17 @@ class FieldDataController(HasTraits):
         ui = self.edit_traits(view='save_file_view')
         if ui.result == True:
             save(self._save_file, self.model.intensity_map)
+            
+    def load(self):
+        """
+        Callback for the 'Load Image' menu option.
+        """
+        ui = self.edit_traits(view='load_file_view')
+        if ui.result == True:
+            try:
+                self.model.intensity_map = load(self._load_file)
+            except:
+                print 'Loading the file failed'
             
         
     

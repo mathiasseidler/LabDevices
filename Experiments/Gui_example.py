@@ -89,7 +89,7 @@ class FieldDataController(HasTraits):
     label_button_measurment = Str('Start acquisition')
     
     _save_file = File
-    _load_file = File
+    _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])
     # Define the view associated with this controller:
     view = View(Item('thread_control' , label="Acquisition", editor = ButtonEditor(label_value = 'label_button_measurment')),
                 'step_amplitude',

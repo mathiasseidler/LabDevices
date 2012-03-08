@@ -1,4 +1,4 @@
-﻿#eclipse
+#eclipse
 .pydevproject
 .project
 .metadata
@@ -14,6 +14,9 @@ local.properties
 .settings/
 .loadpath
 *.pyc
+
+#Python
+*.npy
 
 # External tool builders
 .externalToolBuilders/

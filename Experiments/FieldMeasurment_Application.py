@@ -31,8 +31,8 @@ from time import sleep
 from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
 
-from numpy import array, linspace, meshgrid, nanmin, nanmax,  pi, zeros, ones, save, load
-
+from numpy import array, linspace, meshgrid, nanmin, nanmax,  pi, zeros, ones, save, load, \
+                append
 from enthought.chaco.tools.api import LineInspector, PanTool, RangeSelection, \
                                    RangeSelectionOverlay, ZoomTool, DragZoom
                                    
@@ -47,7 +47,7 @@ class FieldData(HasTraits):
     intensity_map = Array
     data = Array
     index = Array
-
+    
 class CaptureThread(Thread):
     def run(self):
         try:
@@ -56,18 +56,39 @@ class CaptureThread(Thread):
         except:
             print "Exception raised: Devices not available"
             return
-        i = 0
-        while i < 100 and not self.wants_abort:
-            for j in xrange(0,100):
-                self.fd.intensity_map[i,j] = power_meter.getPower()
+        i=0
+        self.fd = array([])
+        while not self.wants_abort: #needs to be improved
+            while stage.AG_UC2_1.get_limit_status() == 'PH0':
                 stage.left(1, self.step_amplitude)
-            stage.up(1,self.step_amplitude)
-            i+=1
-            for j in xrange(99,-1,-1):
-                self.fd.intensity_map[i,j] = power_meter.getPower()
-                stage.right(1,self.step_amplitude)
-            #stage.up(1,self.step_amplitude)
+                self.fd[i] = append( self.fd[i], [power_meter.getPower()])
             stage.forwards(1, self.step_amplitude)
+            i+=1
+            for k in range(1,100): #moving out of the limit
+                stage.right(1, self.step_amplitude)
+                self.fd[i] = append([power_meter.getPower()],self.fd[i])
+            while stage.AG_UC2_1.get_limit_status() == 'PH0':
+                stage.right(1, self.step_amplitude)
+                self.fd[i] = append([power_meter.getPower()], self.fd[i])
+            i+=1
+            
+        #i = 0
+        #=======================================================================
+        # while i < 99 and not self.wants_abort:
+        #    for j in xrange(0,100):
+        #        self.fd.intensity_map[i,j] = power_meter.getPower()*1e6
+        #        stage.left(1, self.step_amplitude)
+        #    stage.forwards(1, self.step_amplitude)
+        #    i+=1
+        #    for j in xrange(99,-1,-1):
+        #        self.fd.intensity_map[i,j] = power_meter.getPower()*1e6
+        #        stage.right(1,self.step_amplitude)
+        #    #stage.up(1,self.step_amplitude)
+        #    stage.forwards(1, self.step_amplitude)
+        #    i+=1
+        #=======================================================================
+        
+        
         print self.fd.intensity_map
 
 class CustomTool(BaseTool): 
@@ -395,7 +416,9 @@ class FieldDataController(HasTraits):
     @on_trait_change('model.intensity_map')        
     def updatePlot(self,name,old,new):
         if self.plot_data:
+            print 'update plot'
             self.plot_data.set_data('imagedata',self.model.intensity_map)
+            self.plot.request_redraw()
 
     def save_file(self):
         """

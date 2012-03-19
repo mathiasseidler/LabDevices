@@ -2,6 +2,7 @@
 Created on Feb 13, 2012
 
 @author: Mathias
+
 '''
 
 import visa
@@ -35,7 +36,6 @@ class NEWPORT_AG_UC2(object):
             self.port = port
             self.device = visa.SerialInstrument(self.port, baud_rate=921600)
             print self.device.ask('VE').strip()
-            print self.getAxisStatus(1)
             self.setToRemoteControl()
 
         except:
@@ -46,7 +46,7 @@ class NEWPORT_AG_UC2(object):
         try:
             self.setToLocalMode()
             self.device.close()
-            print('AG-UC2 connection closed')
+            print('AG-UC2' + '@Port:' + self.port + ' connection closed.')
         except:
             print 'Unexpected error: ', sys.exc_info()[0]         
              
@@ -104,11 +104,21 @@ class NEWPORT_AG_UC2(object):
         self.CheckForErrorOfPreviousCommand()
         
         
-    def getAxisStatus(self,AxisNumber):
+    def get_axis_status(self,AxisNumber):
         '''
         Returns the axis status
         '''
-        return self.device.ask(str(AxisNumber)+'TS')
+        return self.device.ask(str(AxisNumber)+'TS').strip()
+    def get_limit_status(self):
+        '''
+        Returns the status of the limits
+        Possible return messages:
+        PH0: No limit switch is active
+        PH1: Limit switch of channel #1 is active, limit switch of channel #2 is not active
+        PH2: Limit switch of channel #2 is active, limit switch of channel #1 is not active
+        PH3: Limit switch of channel #1 and channel #2 are active
+        '''
+        return self.device.ask('PH').strip()
     
     def CheckForErrorOfPreviousCommand(self):
         '''
@@ -133,7 +143,7 @@ class NEWPORT_AG_UC2(object):
         self.CheckForErrorOfPreviousCommand()
         
     def waitUntilMovementDone(self):
-        while self.device.ask('2TS') != '\n2TS0' and self.device.ask('1TS') != '\n1TS0':
+        while self.device.ask('2TS') != '\n2TS0' or self.device.ask('1TS') != '\n1TS0':
             time.sleep(0.1)
         
 class PreviousCommandError(Error):

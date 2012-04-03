@@ -6,7 +6,7 @@ Created on 03.04.2012
 
 from numpy import *
 
-a= array([[1,2,3],[1,1,1]])
+a= array([[]])
 row1=array([4,4,4,4])
 row2=array([5])
 row3=array([6,6,6,6,6])

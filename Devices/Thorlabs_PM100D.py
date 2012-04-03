@@ -1,7 +1,7 @@
 '''
 Created on Feb 14, 2012
 
-@author: Mathias
+@author: Mathias, Jonathan
 '''
 import visa
 import sys
@@ -18,8 +18,8 @@ class Thorlabs_PM100D:
         '''
         try:
             self.port = port
-            self.device=visa.Instrument(self.port)
-            print self.device.ask('*idn?').strip()
+            self.instr=visa.Instrument(self.port)
+            print self.instr.ask('*idn?').strip()
         except:
             print 'Unexpected error: ', sys.exc_info()[0]
               
@@ -28,7 +28,7 @@ class Thorlabs_PM100D:
         Destructor
         '''
         try:
-            self.device.close()
+            self.instr.close()
             print('PM100D' + '@Port:' + self.port + ' connection closed')
         except:
             print 'Unexpected error: ', sys.exc_info()[0]  
@@ -38,7 +38,18 @@ class Thorlabs_PM100D:
         return: 
             Power in Watt
         '''
-        self.device.write('pow:unit W')
-        self.device.write('conf:pow')
+        self.instr.write('pow:unit W')
+        self.instr.write('conf:pow')
         return float(self.device.ask("read?"))
+    
+    def set_wavelength(self, length):
+        '''
+        Sets the wavelength correction of the power meter to parameter "length".
+        '''
+        if type(length) is int or type(length) is float or type(length) is long:
+            if 400 < length < 1100:
+                self.instr.write("CORR:WAV length")
+            else:
+                print 'Error: specified wavelength must be between 400 and 1100 nm'
+    
         

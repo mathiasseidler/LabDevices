@@ -27,7 +27,6 @@ def append_left_oriented(matrix, row):
 
 def append_right_oriented(matrix, row):
     diff = matrix.shape[1] - row.size
-    print diff
     if diff < 0:
         diff = -diff
         filling = zeros((matrix.shape[0],diff))

@@ -81,45 +81,25 @@ class CaptureThread(Thread):
         except:
             print "Exception raised: Devices not available"
             return
-        i=0
         self.fd = array([[]])
         while not self.wants_abort: #needs to be improved
-            while stage.AG_UC2_1.get_limit_status() == 'PH0':
-                row = array([])
-                stage.left(1, self.step_amplitude)
+            row = array([])
+            while stage.AG_UC2_1.get_limit_status() == 'PH0': #get one line moving to the left
                 row = append( row, power_meter.getPower())
-            
+                stage.left(1, self.step_amplitude)
+            self.fd= append_left_oriented(self.fd, row)
             stage.forwards(1, self.step_amplitude)
-            i+=1
-            for k in range(1,100): #moving out of the limit
-                stage.right(1, self.step_amplitude)
-                self.fd[i] = append([power_meter.getPower()],self.fd[i])
+            #===================================================================
+            # for k in range(1,100): #moving out of the limit
+            #    row = append(power_meter.getPower(),row)
+            #    stage.right(1, self.step_amplitude)
+            #===================================================================
+            row=array([])               
             while stage.AG_UC2_1.get_limit_status() == 'PH0':
+                row = append(power_meter.getPower(), row)
                 stage.right(1, self.step_amplitude)
-                self.fd[i] = append([power_meter.getPower(), self.fd[i])
-            i+=1
-    def append_left_oriented(self, matrix, row):
-        diff = matrix.shape[1] - row.size
-        
-        
-            
-        #i = 0
-        #=======================================================================
-        # while i < 99 and not self.wants_abort:
-        #    for j in xrange(0,100):
-        #        self.fd.intensity_map[i,j] = power_meter.getPower()*1e6
-        #        stage.left(1, self.step_amplitude)
-        #    stage.forwards(1, self.step_amplitude)
-        #    i+=1
-        #    for j in xrange(99,-1,-1):
-        #        self.fd.intensity_map[i,j] = power_meter.getPower()*1e6
-        #        stage.right(1,self.step_amplitude)
-        #    #stage.up(1,self.step_amplitude)
-        #    stage.forwards(1, self.step_amplitude)
-        #    i+=1
-        #=======================================================================
-        
-        
+            self.fd = append_right_oriented(self.fd, row)        
+            stage.forwards(1, self.step_amplitude)
         print self.fd.intensity_map
 
 class CustomTool(BaseTool): 

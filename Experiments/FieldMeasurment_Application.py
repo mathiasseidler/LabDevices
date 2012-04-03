@@ -32,12 +32,37 @@ from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
 
 from numpy import array, linspace, meshgrid, nanmin, nanmax,  pi, zeros, ones, save, load, \
-                append
+                append, hstack, vstack
 from enthought.chaco.tools.api import LineInspector, PanTool, RangeSelection, \
                                    RangeSelectionOverlay, ZoomTool, DragZoom
                                    
 from enthought.traits.api import File
 from enthought.traits.ui.key_bindings import KeyBinding, KeyBindings
+
+def append_left_oriented(matrix, row):
+    diff = matrix.shape[1] - row.size
+    print diff
+    if diff < 0:
+        diff = -diff
+        filling = zeros((matrix.shape[0],diff))
+        matrix=hstack((matrix,filling))
+    elif diff > 0:
+        filling = zeros(diff)
+        row = hstack((row,filling))
+    matrix=vstack((row,matrix))
+    return matrix
+
+def append_right_oriented(matrix, row):
+    diff = matrix.shape[1] - row.size
+    if diff < 0:
+        diff = -diff
+        filling = zeros((matrix.shape[0],diff))
+        matrix=hstack((filling,matrix))
+    elif diff > 0:
+        filling = zeros(diff)
+        row = hstack((filling,row))
+    matrix=vstack((row,matrix))
+    return matrix
 
 
 class FieldData(HasTraits):
@@ -57,11 +82,13 @@ class CaptureThread(Thread):
             print "Exception raised: Devices not available"
             return
         i=0
-        self.fd = array([])
+        self.fd = array([[]])
         while not self.wants_abort: #needs to be improved
             while stage.AG_UC2_1.get_limit_status() == 'PH0':
+                row = array([])
                 stage.left(1, self.step_amplitude)
-                self.fd[i] = append( self.fd[i], [power_meter.getPower()])
+                row = append( row, power_meter.getPower())
+            
             stage.forwards(1, self.step_amplitude)
             i+=1
             for k in range(1,100): #moving out of the limit
@@ -69,8 +96,12 @@ class CaptureThread(Thread):
                 self.fd[i] = append([power_meter.getPower()],self.fd[i])
             while stage.AG_UC2_1.get_limit_status() == 'PH0':
                 stage.right(1, self.step_amplitude)
-                self.fd[i] = append([power_meter.getPower()], self.fd[i])
+                self.fd[i] = append([power_meter.getPower(), self.fd[i])
             i+=1
+    def append_left_oriented(self, matrix, row):
+        diff = matrix.shape[1] - row.size
+        
+        
             
         #i = 0
         #=======================================================================
@@ -99,22 +130,8 @@ class CustomTool(BaseTool):
         '''
         print event
         
+    
 class PlotUI(HasTraits):
-    
-    traits_view = View(Group(Item('container',editor=ComponentEditor(size=(800,600)),show_label=False)),
-                       buttons=NoButtons,
-                       resizable=True)
-    plot_edit_view = View(Group(Item('num_levels'),Item('colormap')),buttons=["OK","Cancel"])
-    
-    num_levels = Int(15)
-    colormap = Enum(color_map_name_dict.keys())
-    
-    def __init__(self, *args, **kwargs):
-        super(PlotUI, self).__init__(*args, **kwargs) 
-        self.create_plot()
-        
-    
-    class PlotUI(HasTraits):
     #Traits view definitions:
     traits_view = View(
         Group(Item('container',
@@ -149,9 +166,8 @@ class PlotUI(HasTraits):
        
         self._image_value = ImageData(data=array([]), value_depth=1)
         image_value_range = DataRange1D(self._image_value)
+        
         # Create the contour plots
-        
-        
         self.polyplot = ContourPolyPlot(index=self._image_index, 
                                         value=self._image_value, 
                                         index_mapper=GridMapper(range=image_index_range), 

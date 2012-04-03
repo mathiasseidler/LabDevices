@@ -48,6 +48,7 @@ class Model(HasTraits):
     minz = Float
     maxz = Float
     model_changed = Event
+    
     def __init__(self, *args, **kwargs):
         super(Model, self).__init__(*args, **kwargs)
         self.compute_model()

@@ -40,7 +40,7 @@ class Thorlabs_PM100D:
         '''
         self.instr.write('pow:unit W')
         self.instr.write('conf:pow')
-        return float(self.device.ask("read?"))
+        return float(self.instr.ask("read?"))
     
     def set_wavelength(self, length):
         '''

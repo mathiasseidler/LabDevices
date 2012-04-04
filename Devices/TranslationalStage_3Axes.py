@@ -11,8 +11,8 @@ class TranslationalStage_3Axes:
     '''
     channels for controller1
     '''
-    channel_xaxes=2
-    channel_yaxes=1
+    channel_xaxes=1
+    channel_yaxes=2
     
     '''
     channels for controller 2

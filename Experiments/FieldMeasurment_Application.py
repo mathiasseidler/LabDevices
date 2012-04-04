@@ -41,7 +41,6 @@ from enthought.traits.ui.key_bindings import KeyBinding, KeyBindings
 
 def append_left_oriented(matrix, row):
     diff = matrix.shape[1] - row.size
-    print diff
     if diff < 0:
         diff = -diff
         filling = zeros((matrix.shape[0],diff))
@@ -61,7 +60,7 @@ def append_right_oriented(matrix, row):
     elif diff > 0:
         filling = zeros(diff)
         row = hstack((filling,row))
-    matrix=vstack((row,matrix))
+    matrix=vstack((matrix,row))
     return matrix
 
 
@@ -75,32 +74,35 @@ class FieldData(HasTraits):
     
 class CaptureThread(Thread):
     def run(self):
+        print self
         try:
             power_meter  = Thorlabs_PM100D("PM100D")
             stage       = TranslationalStage_3Axes('COM3','COM4')   
         except:
             print "Exception raised: Devices not available"
             return
-        self.fd = array([[]])
+        self.fd.intensity_map = array([[]])
         i=0
-        while not self.wants_abort or i<600: #needs to be improved
+        while not self.wants_abort and i<self.step_range: #needs to be improved
             row = array([])
-            while stage.AG_UC2_1.get_limit_status() == 'PH0': #get one line moving to the left
+            for k in range(1,5): #moving out of the limit
+               row = append(row, power_meter.getPower())
+               stage.left(self.steps, self.step_amplitude)  
+            while stage.AG_UC2_1.get_limit_status() == 'PH0' and not self.wants_abort: #get one line moving to the left
                 row = append( row, power_meter.getPower())
-                stage.left(1, self.step_amplitude)
-            self.fd= append_left_oriented(self.fd, row)
-            stage.backwards(1, self.step_amplitude)
-            #===================================================================
-            # for k in range(1,100): #moving out of the limit
-            #    row = append(power_meter.getPower(),row)
-            #    stage.right(1, self.step_amplitude)
-            #===================================================================
-            row=array([])               
-            while stage.AG_UC2_1.get_limit_status() == 'PH0':
+                stage.left(self.steps, self.step_amplitude)
+            self.fd.intensity_map= append_left_oriented(self.fd.intensity_map, row)
+            stage.backwards(self.steps, self.step_amplitude)
+            
+            row=array([])                   
+            for k in range(1,5): #moving out of the limit
+               row = append(power_meter.getPower(),row)
+               stage.right(self.steps, self.step_amplitude)       
+            while stage.AG_UC2_1.get_limit_status() == 'PH0' and not self.wants_abort:
                 row = append(power_meter.getPower(), row)
-                stage.right(1, self.step_amplitude)
-            self.fd = append_right_oriented(self.fd, row)        
-            stage.backwards(1, self.step_amplitude)
+                stage.right(self.steps, self.step_amplitude)
+            self.fd.intensity_map = append_right_oriented(self.fd.intensity_map, row)        
+            stage.backwards(self.steps, self.step_amplitude)
             i+=1
         print self.fd.intensity_map
 
@@ -121,8 +123,9 @@ class FieldDataController(HasTraits):
     plot_data=Instance(ArrayPlotData)
     renderer = Any()
     
-    step_amplitude = Int(16)
-    step_range = Int(100)
+    step_amplitude = Int(50)
+    step_range = Int(5)
+    steps = Int(1000)
     
     thread_control = Event
     capture_thread=Instance(CaptureThread) 
@@ -132,7 +135,7 @@ class FieldDataController(HasTraits):
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])
     # Define the view associated with this controller:
     view = View(Item('thread_control' , label="Acquisition", editor = ButtonEditor(label_value = 'label_button_measurment')),
-                'step_amplitude', 'step_range',
+                'step_amplitude', 'step_range', 'steps',
                 Item('plot',editor=ComponentEditor(),show_label=False),
                 menubar=MenuBar(Menu(Action(name="Load File", action="load_file"), # action= ... calls the function, given in the string
                                      Action(name="Save File", action="save_file"), 
@@ -157,7 +160,7 @@ class FieldDataController(HasTraits):
         super(FieldDataController, self).__init__(*args, **kw)
         #self.plotdata = ArrayPlotData(x = self.model.index, y = self.model.data)
 
-        self.model.intensity_map = zeros((100,100))
+        self.model.intensity_map = array([[]])
 
         # Create a plot data obect and give it this data
         self.plot_data = ArrayPlotData()
@@ -203,6 +206,8 @@ class FieldDataController(HasTraits):
             self.capture_thread.plotdata= self.plot_data
             self.capture_thread.step_amplitude = self.step_amplitude
             self.capture_thread.start()
+            self.capture_thread.step_range = self.step_range
+            self.capture_thread.steps = self.steps
             self.label_button_measurment = 'Stop acquisition'
             #import time
             #time.sleep(0.1)
@@ -214,9 +219,11 @@ class FieldDataController(HasTraits):
     @on_trait_change('model.intensity_map')        
     def updatePlot(self,name,old,new):
         if self.plot_data:
-            print 'update plot'
-            self.plot_data.set_data('imagedata',self.model.intensity_map)
-            self.plot.request_redraw()
+            pass
+            #print 'update plot'
+            #print self.model.intensity_map
+           # self.plot_data.set_data('imagedata',self.model.intensity_map)
+            #self.plot.request_redraw()
 
     def save_file(self):
         """

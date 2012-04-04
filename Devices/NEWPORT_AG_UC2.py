@@ -162,5 +162,5 @@ class PreviousCommandError(Error):
     }
     
     def __init__(self, ErrorCode):
-        print("Errorcode: " + ErrorCode + ", Errormessage: " + self.dictErrorCode.get(ErrorCode))
+        print("error code: " + ErrorCode + ", error message: " + self.dictErrorCode.get(ErrorCode))
         self.msg=self.dictErrorCode.get(ErrorCode)

@@ -16,10 +16,11 @@ from enthought.enable.api import Component, ComponentEditor, Window
 from enthought.traits.api import HasTraits, Instance, File, Str
 from enthought.traits.ui.api import Item, Group, View
 # Chaco imports
-from enthought.chaco.api import ArrayPlotData, jet, Plot
+from enthought.chaco.api import ArrayPlotData, jet, Plot, ColorBar, HPlotContainer, LinearMapper
 from enthought.chaco.tools.api import PanTool, ZoomTool
 from enthought.chaco.tools.api import TraitsTool
-from enthought.chaco.tools.api import SaveTool
+from enthought.chaco.tools import toolbars
+from enthought.chaco.tools.api import SaveTool, RangeSelection, RangeSelectionOverlay
 from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
 #===============================================================================
@@ -37,21 +38,59 @@ def _create_plot_component(file_name):
     pd.set_data("imagedata", z)
     # Create the plot
     plot = Plot(pd)
-
-    img_plot = plot.img_plot("imagedata", 
+    plot.bgcolor = 'gray'
+    
+    img_plot = plot.img_plot("imagedata",
+                             name='my_plot', 
                             # xbounds=x,
                              #ybounds=y,
-                             colormap=jet)[0]
+                             colormap=jet,
+                             hide_grids=True)[0]
     # Tweak some of the plot properties
     plot.title = file_name
     plot.padding = 50
     # Attach some tools to the plot
     plot.tools.append(PanTool(plot))
-    plot.tools.append(TraitsTool(plot))
+    #plot.tools.append(TraitsTool(plot))
     zoom = ZoomTool(component=img_plot, tool_mode="box", always_on=False)
     img_plot.overlays.append(zoom)
-    plot.tools.append(SaveTool(plot))
-    return plot
+    #plot.y_axis.tick_label_formatter = lambda x: "%.3e" % x
+    #plot.x_axis.tick_label_formatter = lambda x: "%.3e" % x
+    #plot.tools.append(SaveTool(plot))
+    # Right now, some of the tools are a little invasive, and we need the
+    # actual CMapImage object to give to them
+    my_plot = img_plot#plot.plots["my_plot"][0]
+    colormap = my_plot.color_mapper
+    colorbar = ColorBar(index_mapper=LinearMapper(range=colormap.range),
+                        color_mapper=colormap,
+                        plot=my_plot,
+                        orientation='v',
+                        resizable='v',
+                        width=30,
+                        padding=20)
+    
+    colorbar._axis.tick_label_formatter = lambda x: "%.2e" % x
+    colorbar.padding_top = plot.padding_top
+    colorbar.padding_bottom = plot.padding_bottom
+    # create a range selection for the colorbar
+    range_selection = RangeSelection(component=colorbar)
+    colorbar.tools.append(range_selection)
+    colorbar.overlays.append(RangeSelectionOverlay(component=colorbar,
+                                                   border_color="white",
+                                                   alpha=0.5,
+                                                   fill_color="lightgray"))
+    # we also want to the range selection to inform the cmap plot of
+    # the selection, so set that up as well
+    range_selection.listeners.append(my_plot)
+    # Create a container to position the plot and the colorbar side-by-side
+    container = HPlotContainer(use_backbuffer = True)
+    container.add(plot)
+    container.add(colorbar)
+    container.bgcolor = "lightgray"
+    container.tools.append(SaveTool(container))
+    container.tools.append(TraitsTool(container))
+    #my_plot.set_value_selection((-1.3, 6.9))
+    return container    
 #===============================================================================
 # Attributes to use for the plot view.
 size=(800,600)
@@ -75,7 +114,10 @@ class Demo(HasTraits):
                     resizable=True, title=title
                     )
     def _plot_default(self):
-        return _create_plot_component(self.file_name)
+        try:
+            return _create_plot_component(self.file_name)
+        except:
+            print 'some mistakes happened'
      
     def load_file(self):
         """

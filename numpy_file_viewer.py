@@ -23,6 +23,8 @@ from enthought.chaco.tools import toolbars
 from enthought.chaco.tools.api import SaveTool, RangeSelection, RangeSelectionOverlay
 from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
+from enthought.chaco.scales.formatters import BasicFormatter
+                    
 #===============================================================================
 # # Create the Chaco plot.
 #===============================================================================
@@ -86,7 +88,7 @@ def _create_plot_component(file_name):
     container = HPlotContainer(use_backbuffer = True)
     container.add(plot)
     container.add(colorbar)
-    container.bgcolor = "lightgray"
+    container.bgcolor = "white"
     container.tools.append(SaveTool(container))
     container.tools.append(TraitsTool(container))
     #my_plot.set_value_selection((-1.3, 6.9))

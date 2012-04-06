@@ -74,6 +74,9 @@ class FieldData(HasTraits):
     
 class CaptureThread(Thread):
     def run(self):
+        measure1()
+
+    def measure1(self):
         print self
         try:
             power_meter  = Thorlabs_PM100D("PM100D")
@@ -105,6 +108,40 @@ class CaptureThread(Thread):
             stage.backwards(self.steps, self.step_amplitude)
             i+=1
         print self.fd.intensity_map
+        
+    def measure2(self):
+        try:
+            power_meter  = Thorlabs_PM100D("PM100D")
+            stage       = TranslationalStage_3Axes('COM3','COM4')   
+        except:
+            print "Exception raised: Devices not available"
+            return
+        
+        self.fd.intensity_map=array([[]])
+        row=array([[]])
+        index = 100
+        for i in index:
+            
+        for i in range(0,index):
+            row = append(power_meter.getPower(),row)
+            stage.left(self.steps, self.step_amplitude)
+        self.fd.intensity_map = append_left_oriented(self.fd.intensity_map, row)
+        stage.backwards(self.steps, self.step_amplitude)
+        
+        for i in range(0,index):
+            row = append(power_meter.getPower(),row)
+            stage.right(self.steps, self.step_amplitude)
+        self.fd.intensity_map = append_right_oriented(self.fd.intensity_map, row)
+        stage.backwards(self.steps, self.step_amplitude)
+            
+        
+             
+
+            
+        
+        
+        
+        
 
 class CustomTool(BaseTool): 
     #right click

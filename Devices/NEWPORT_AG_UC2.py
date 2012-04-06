@@ -144,7 +144,7 @@ class NEWPORT_AG_UC2(object):
         
     def waitUntilMovementDone(self):
         while self.device.ask('2TS') != '\n2TS0' or self.device.ask('1TS') != '\n1TS0':
-            time.sleep(0.1)
+            time.sleep(0.01)
         
 class PreviousCommandError(Error):
     """

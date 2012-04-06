@@ -127,6 +127,7 @@ class Demo(HasTraits):
         """
         import easygui
         self.file_name = easygui.fileopenbox()
+        print self.field_name
         if self.file_name:
             try:
                 self.plot=self._plot_default()

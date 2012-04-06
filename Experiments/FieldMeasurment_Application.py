@@ -74,7 +74,7 @@ class FieldData(HasTraits):
     
 class CaptureThread(Thread):
     def run(self):
-        measure1()
+        self.measure1()
 
     def measure1(self):
         print self
@@ -120,20 +120,22 @@ class CaptureThread(Thread):
         self.fd.intensity_map=array([[]])
         row=array([[]])
         index = 100
-        for i in index:
-            
-        for i in range(0,index):
-            row = append(power_meter.getPower(),row)
-            stage.left(self.steps, self.step_amplitude)
-        self.fd.intensity_map = append_left_oriented(self.fd.intensity_map, row)
-        stage.backwards(self.steps, self.step_amplitude)
+        
         
         for i in range(0,index):
-            row = append(power_meter.getPower(),row)
-            stage.right(self.steps, self.step_amplitude)
-        self.fd.intensity_map = append_right_oriented(self.fd.intensity_map, row)
-        stage.backwards(self.steps, self.step_amplitude)
+            for j in range(0,index):
+                row = append(power_meter.getPower(),row)
+                stage.left(self.steps, self.step_amplitude)
+            self.fd.intensity_map = append_left_oriented(self.fd.intensity_map, row)
+            stage.backwards(self.steps, self.step_amplitude)
             
+            for j in range(0,index):
+                row = append(power_meter.getPower(),row)
+                stage.right(self.steps, self.step_amplitude)
+            self.fd.intensity_map = append_right_oriented(self.fd.intensity_map, row)
+            stage.backwards(self.steps, self.step_amplitude)
+            print self.fd.intensity_map
+                
         
              
 

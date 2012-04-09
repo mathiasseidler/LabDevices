@@ -24,6 +24,7 @@ from enthought.chaco.tools.api import SaveTool, RangeSelection, RangeSelectionOv
 from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
 from enthought.chaco.scales.formatters import BasicFormatter
+
                     
 #===============================================================================
 # # Create the Chaco plot.
@@ -68,12 +69,14 @@ def _create_plot_component(file_name):
                         plot=my_plot,
                         orientation='v',
                         resizable='v',
-                        width=30,
-                        padding=20)
+                        width=25,
+                        padding=10)
     
-    colorbar._axis.tick_label_formatter = lambda x: "%.2e" % x
+    #colorbar._axis.tick_label_formatter = lambda x: '%.0e'%(x*10e6) + u' [\u00b5' + 'Watt]'
+    colorbar._axis.tick_label_formatter = lambda x: ('%.0f'%(x*10e6)) + u' [\u00b5' + 'W]'
     colorbar.padding_top = plot.padding_top
     colorbar.padding_bottom = plot.padding_bottom
+    colorbar.padding_left = 100
     # create a range selection for the colorbar
     range_selection = RangeSelection(component=colorbar)
     colorbar.tools.append(range_selection)
@@ -86,8 +89,8 @@ def _create_plot_component(file_name):
     range_selection.listeners.append(my_plot)
     # Create a container to position the plot and the colorbar side-by-side
     container = HPlotContainer(use_backbuffer = True)
-    container.add(plot)
     container.add(colorbar)
+    container.add(plot)
     container.bgcolor = "white"
     container.tools.append(SaveTool(container))
     container.tools.append(TraitsTool(container))
@@ -96,7 +99,7 @@ def _create_plot_component(file_name):
 #===============================================================================
 # Attributes to use for the plot view.
 size=(800,600)
-title="Basic Colormapped Image Plot"       
+title="Basic Colormapped Image Plot" + u'\u00b5'      
 #===============================================================================
 # # Demo class that is used by the demo.py application.
 #===============================================================================
@@ -127,7 +130,7 @@ class Demo(HasTraits):
         """
         import easygui
         self.file_name = easygui.fileopenbox()
-        print self.field_name
+        print self.file_name
         if self.file_name:
             try:
                 self.plot=self._plot_default()

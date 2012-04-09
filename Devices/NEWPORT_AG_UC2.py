@@ -91,6 +91,15 @@ class NEWPORT_AG_UC2(object):
         time.sleep(1)
         self.waitUntilMovementDone()    
     
+    def move_to_limit(self, channel, speed):
+        ''''
+        Starts a jog motion at a defined speed to the limit and stops 
+        automatically when the limit is activated. See JA command for details.
+        '''
+        self.device.write(str(channel)+'MV'+str(speed))
+        self.waitUntilMovementDone()
+        self.CheckForErrorOfPreviousCommand()
+        
     def StopMotion(self,AxisNumber):
         '''
         Stops the motion of the input axis

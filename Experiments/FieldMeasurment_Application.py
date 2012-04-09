@@ -74,7 +74,7 @@ class FieldData(HasTraits):
     
 class CaptureThread(Thread):
     def run(self):
-        self.measure1()
+        self.measure3()
 
     def measure1(self):
         print self
@@ -135,16 +135,34 @@ class CaptureThread(Thread):
             self.fd.intensity_map = append_right_oriented(self.fd.intensity_map, row)
             stage.backwards(self.steps, self.step_amplitude)
             print self.fd.intensity_map
-                
-        
-             
-
             
+    def measure3(self):
+        try:
+            power_meter  = Thorlabs_PM100D("PM100D")
+            stage       = TranslationalStage_3Axes('COM3','COM4')   
+        except:
+            print "Exception raised: Devices not available"
+            return
         
+        self.fd.intensity_map=array([[]])
+        #index = 10
+        stage.AG_UC2_1.move_to_limit(1, -3)
+        for i in range(0,self.step_range):
+            row=array([])
+            for j in range(0,150):
+                if self.wants_abort:
+                    return
+                row = append(power_meter.getPower(),row)
+                stage.left(self.steps, self.step_amplitude)
+                
+            if i==0:
+                self.fd.intensity_map = append(self.fd.intensity_map, row)
+            else:
+                self.fd.intensity_map = vstack((self.fd.intensity_map, row))
+                
+            stage.backwards(self.steps, 50)#self.step_amplitude)
+            stage.AG_UC2_1.move_to_limit(1, -3)
         
-        
-        
-
 class CustomTool(BaseTool): 
     #right click
     def normal_right_down(self, event):
@@ -162,9 +180,9 @@ class FieldDataController(HasTraits):
     plot_data=Instance(ArrayPlotData)
     renderer = Any()
     
-    step_amplitude = Int(50)
-    step_range = Int(5)
-    steps = Int(1000)
+    step_amplitude = Int(16)
+    step_range = Int(100)
+    steps = Int(5)
     
     thread_control = Event
     capture_thread=Instance(CaptureThread) 
@@ -206,32 +224,14 @@ class FieldDataController(HasTraits):
         self.plot_data.set_data("imagedata", self.model.intensity_map)
         # Create a contour polygon plot of the data
         plot = Plot(self.plot_data, default_origin="top left")
-        plot.contour_plot("imagedata", 
-                          type="poly",
-                          poly_cmap=jet,
-                          name='Intensity map')
-        # Create a contour line plot for the data, too
-        plot.contour_plot("imagedata", 
-                          type="line")
-        # Tweak some of the plot properties
-        plot.title = "Intensity Map"
-        plot.padding = 50
-        plot.bg_color = "black"
-        plot.fill_padding = True 
-        # Attach some tools to the plot
-        plot.tools.append(PanTool(plot))
-        zoom = ZoomTool(component=plot, tool_mode="box", always_on=False)
-        plot.overlays.append(zoom)
-            
-        dragzoom = DragZoom(plot, drag_button="right")
-        plot.tools.append(dragzoom)
-        plot.tools.append(CustomTool(plot))
-        #plot.x_axis.title = 'Index'
-        #plot.y_axis.title = r'Power [$\mu$W]'
-        #self.renderer = plot.plot(("x", "y"), type="line", color="black")
-        self.plot = plot     
-        #add_default_grids(self.plot)
-        #add_default_axes(self.plot)
+        plot.bgcolor = 'gray'
+        plot.img_plot("imagedata",
+                             name='my_plot', 
+                            # xbounds=x,
+                             #ybounds=y,
+                             colormap=jet,
+                             hide_grids=True)[0]
+        self.plot = plot
         
     def _thread_control_fired(self):
         # if not self.running:
@@ -257,12 +257,22 @@ class FieldDataController(HasTraits):
             
     @on_trait_change('model.intensity_map')        
     def updatePlot(self,name,old,new):
-        if self.plot_data:
-            pass
+        if self.plot_data and new.ndim > 1:
+            print 'update Plot'
             #print 'update plot'
             #print self.model.intensity_map
-           # self.plot_data.set_data('imagedata',self.model.intensity_map)
-            #self.plot.request_redraw()
+            self.plot_data.set_data("imagedata", new)
+            # Create a contour polygon plot of the data
+            plot = Plot(self.plot_data, default_origin="top left")
+            plot.bgcolor = 'gray'
+            plot.img_plot("imagedata",
+                             name='my_plot', 
+                            # xbounds=x,
+                             #ybounds=y,
+                             colormap=jet,
+                             hide_grids=True)[0]
+            self.plot = plot
+            self.plot.request_redraw()
 
     def save_file(self):
         """

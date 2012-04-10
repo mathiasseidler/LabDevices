@@ -24,6 +24,7 @@ from enthought.chaco.tools.api import SaveTool, RangeSelection, RangeSelectionOv
 from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
 from enthought.chaco.scales.formatters import BasicFormatter
+from enthought.chaco.tools.image_inspector_tool import ImageInspectorTool, ImageInspectorOverlay
 
                     
 #===============================================================================
@@ -51,7 +52,7 @@ def _create_plot_component(file_name):
                              hide_grids=True)[0]
     # Tweak some of the plot properties
     plot.title = file_name
-    plot.padding = 50
+    plot.padding = 40
     # Attach some tools to the plot
     plot.tools.append(PanTool(plot))
     #plot.tools.append(TraitsTool(plot))
@@ -70,13 +71,14 @@ def _create_plot_component(file_name):
                         orientation='v',
                         resizable='v',
                         width=25,
-                        padding=10)
-    
+                        padding=0)
+    colorbar.origin = 'bottom left'
     #colorbar._axis.tick_label_formatter = lambda x: '%.0e'%(x*10e6) + u' [\u00b5' + 'Watt]'
-    colorbar._axis.tick_label_formatter = lambda x: ('%.0f'%(x*10e6)) + u' [\u00b5' + 'W]'
+    colorbar._axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6)) + u' [\u00b5' + 'W]'
+    colorbar._axis.orientation = 'right'
     colorbar.padding_top = plot.padding_top
     colorbar.padding_bottom = plot.padding_bottom
-    colorbar.padding_left = 100
+    colorbar.padding_right = 60
     # create a range selection for the colorbar
     range_selection = RangeSelection(component=colorbar)
     colorbar.tools.append(range_selection)
@@ -84,13 +86,19 @@ def _create_plot_component(file_name):
                                                    border_color="white",
                                                    alpha=0.5,
                                                    fill_color="lightgray"))
+    
+    range_selection.listeners.append(my_plot)
+    
+    imgtool = ImageInspectorTool(img_plot)
+    img_plot.tools.append(imgtool)
+    plot.overlays.append(ImageInspectorOverlay(component=img_plot, image_inspector=imgtool))
     # we also want to the range selection to inform the cmap plot of
     # the selection, so set that up as well
-    range_selection.listeners.append(my_plot)
+
     # Create a container to position the plot and the colorbar side-by-side
     container = HPlotContainer(use_backbuffer = True)
-    container.add(colorbar)
     container.add(plot)
+    container.add(colorbar)
     container.bgcolor = "white"
     container.tools.append(SaveTool(container))
     container.tools.append(TraitsTool(container))
@@ -105,14 +113,14 @@ title="Basic Colormapped Image Plot" + u'\u00b5'
 #===============================================================================
 class Demo(HasTraits):
     plot = Instance(Component)
-    file_name=Str('50sa.npy')
+    file_name=Str('measure_3.npy')
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])   
    
     traits_view = View(
                     Group(
                         Item('plot', editor=ComponentEditor(size=size), show_label=False),orientation = "vertical"),
-                        menubar=MenuBar(Menu(Action(name="Load File", action="load_file"), # action= ... calls the function, given in the string
+                        menubar=MenuBar(Menu(Action(name="Load numpy-data", action="load_file"), # action= ... calls the function, given in the string
                         Separator(),
                         CloseAction,
                         name="File")),

@@ -194,8 +194,8 @@ class FieldDataController(HasTraits):
     view = View(Item('thread_control' , label="Acquisition", editor = ButtonEditor(label_value = 'label_button_measurment')),
                 'step_amplitude', 'step_range', 'steps',
                 Item('plot',editor=ComponentEditor(),show_label=False),
-                menubar=MenuBar(Menu(Action(name="Load File", action="load_file"), # action= ... calls the function, given in the string
-                                     Action(name="Save File", action="save_file"), 
+                menubar=MenuBar(Menu(Action(name="load data", action="load_file"), # action= ... calls the function, given in the string
+                                     Action(name="save data", action="save_file"), 
                         Separator(),
                         CloseAction,
                         name="File")),

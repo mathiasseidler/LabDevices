@@ -21,6 +21,7 @@ from enthought.chaco.api import ArrayPlotData, ColorBar, \
                                  jet, LinearMapper, Plot, gist_earth
 from enthought.chaco.tools.api import PanTool, ZoomTool, RangeSelection, \
                                        RangeSelectionOverlay
+from enthought.chaco.tools.image_inspector_tool import ImageInspectorTool, ImageInspectorOverlay
 #===============================================================================
 # # Create the Chaco plot.
 #===============================================================================
@@ -61,6 +62,7 @@ def _create_plot_component():
     plot.tools.append(PanTool(plot, constrain_key="shift"))
     zoom = ZoomTool(plot)
     plot.overlays.append(zoom)
+
    
     # Create the colorbar, handing in the appropriate range and colormap
     colorbar = ColorBar(index_mapper=LinearMapper(range=plot.color_mapper.range),

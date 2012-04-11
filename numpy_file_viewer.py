@@ -50,9 +50,11 @@ def _create_plot_component(file_name):
                              #ybounds=y,
                              colormap=jet,
                              hide_grids=True)[0]
+    cont_plot=plot.contour_plot('imagedata', type='line', name='countour')
     # Tweak some of the plot properties
     plot.title = file_name
     plot.padding = 40
+    plot.padding_right=20
     # Attach some tools to the plot
     plot.tools.append(PanTool(plot))
     #plot.tools.append(TraitsTool(plot))
@@ -74,11 +76,12 @@ def _create_plot_component(file_name):
                         padding=0)
     colorbar.origin = 'bottom left'
     #colorbar._axis.tick_label_formatter = lambda x: '%.0e'%(x*10e6) + u' [\u00b5' + 'Watt]'
-    colorbar._axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6)) + u' [\u00b5' + 'W]'
+    colorbar._axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6))
     colorbar._axis.orientation = 'right'
+    colorbar._axis.title = u'Intensity [\u00b5W]'
     colorbar.padding_top = plot.padding_top
     colorbar.padding_bottom = plot.padding_bottom
-    colorbar.padding_right = 60
+    colorbar.padding_right = 100
     # create a range selection for the colorbar
     range_selection = RangeSelection(component=colorbar)
     colorbar.tools.append(range_selection)
@@ -107,7 +110,7 @@ def _create_plot_component(file_name):
 #===============================================================================
 # Attributes to use for the plot view.
 size=(800,600)
-title="Basic Colormapped Image Plot" + u'\u00b5'      
+title="Basic Colormapped Image Plot"   
 #===============================================================================
 # # Demo class that is used by the demo.py application.
 #===============================================================================
@@ -143,18 +146,7 @@ class Demo(HasTraits):
             try:
                 self.plot=self._plot_default()
             except:
-                print 'Loading the file failed'
+                print 'Loading file failed'
    
 demo = Demo()
 demo.configure_traits(view='traits_view')
-#===============================================================================
-# Stand-alone frame to display the plot.
-#===============================================================================
-#===============================================================================
-# class PlotFrame(DemoFrame):
-#    def _create_window(self):
-#        # Return a window containing our plot
-#        return Window(self, -1, component=_create_plot_component())       
-# if __name__ == "__main__":
-#    demo_main(PlotFrame, size=size, title=title)
-#===============================================================================

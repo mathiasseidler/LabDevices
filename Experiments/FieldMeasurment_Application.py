@@ -16,11 +16,11 @@ from enthought.chaco.api import ArrayDataSource, ArrayPlotData, ColorBar, Contou
                                  ContourPolyPlot, DataRange1D, VPlotContainer, \
                                  DataRange2D, GridMapper, GridDataSource, \
                                  HPlotContainer, ImageData, LinearMapper, \
-                                 LinePlot, OverlayPlotContainer, Plot, PlotAxis
+                                 LinePlot, OverlayPlotContainer, Plot, PlotAxis, ImageData
                                  
 from enthought.enable.api import Window                        
                          
-from enthought.enable.component_editor import ComponentEditor
+from enthought.enable.api import ComponentEditor, Component
 
 from threading import Thread
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
@@ -38,6 +38,7 @@ from enthought.chaco.tools.api import LineInspector, PanTool, RangeSelection, \
                                    
 from enthought.traits.api import File
 from enthought.traits.ui.key_bindings import KeyBinding, KeyBindings
+from pylab import unravel_index
 
 def append_left_oriented(matrix, row):
     diff = matrix.shape[1] - row.size
@@ -69,72 +70,13 @@ class FieldData(HasTraits):
     """  
     __slots__ = 'intensity_map','data', 'index'
     intensity_map = Array
+    intens_vert = Array
     data = Array
     index = Array
     
 class CaptureThread(Thread):
     def run(self):
         self.measure3()
-
-    def measure1(self):
-        print self
-        try:
-            power_meter  = Thorlabs_PM100D("PM100D")
-            stage       = TranslationalStage_3Axes('COM3','COM4')   
-        except:
-            print "Exception raised: Devices not available"
-            return
-        self.fd.intensity_map = array([[]])
-        i=0
-        while not self.wants_abort and i<self.step_range: #needs to be improved
-            row = array([])
-            for k in range(1,5): #moving out of the limit
-               row = append(row, power_meter.getPower())
-               stage.left(self.steps, self.step_amplitude)  
-            while stage.AG_UC2_1.get_limit_status() == 'PH0' and not self.wants_abort: #get one line moving to the left
-                row = append( row, power_meter.getPower())
-                stage.left(self.steps, self.step_amplitude)
-            self.fd.intensity_map= append_left_oriented(self.fd.intensity_map, row)
-            stage.backwards(self.steps, self.step_amplitude)
-            
-            row=array([])                   
-            for k in range(1,5): #moving out of the limit
-               row = append(power_meter.getPower(),row)
-               stage.right(self.steps, self.step_amplitude)       
-            while stage.AG_UC2_1.get_limit_status() == 'PH0' and not self.wants_abort:
-                row = append(power_meter.getPower(), row)
-                stage.right(self.steps, self.step_amplitude)
-            self.fd.intensity_map = append_right_oriented(self.fd.intensity_map, row)        
-            stage.backwards(self.steps, self.step_amplitude)
-            i+=1
-        print self.fd.intensity_map
-        
-    def measure2(self):
-        try:
-            power_meter  = Thorlabs_PM100D("PM100D")
-            stage       = TranslationalStage_3Axes('COM3','COM4')   
-        except:
-            print "Exception raised: Devices not available"
-            return
-        
-        self.fd.intensity_map=array([[]])
-        row=array([[]])
-        index = 100
-        
-        
-        for i in range(0,index):
-            for j in range(0,index):
-                row = append(power_meter.getPower(),row)
-                stage.left(self.steps, self.step_amplitude)
-            self.fd.intensity_map = append_left_oriented(self.fd.intensity_map, row)
-            stage.backwards(self.steps, self.step_amplitude)
-            
-            for j in range(0,index):
-                row = append(power_meter.getPower(),row)
-                stage.right(self.steps, self.step_amplitude)
-            self.fd.intensity_map = append_right_oriented(self.fd.intensity_map, row)
-            stage.backwards(self.steps, self.step_amplitude)
-            print self.fd.intensity_map
             
     def measure3(self):
         try:
@@ -145,7 +87,6 @@ class CaptureThread(Thread):
             return
         
         self.fd.intensity_map=array([[]])
-        #index = 10
         stage.AG_UC2_1.move_to_limit(1, -3)
         for i in range(0,self.step_range):
             row=array([])
@@ -154,14 +95,36 @@ class CaptureThread(Thread):
                     return
                 row = append(power_meter.getPower(),row)
                 stage.left(self.steps, self.step_amplitude)
-                
             if i==0:
                 self.fd.intensity_map = append(self.fd.intensity_map, row)
             else:
-                self.fd.intensity_map = vstack((self.fd.intensity_map, row))
-                
+                self.fd.intensity_map = vstack((self.fd.intensity_map, row))    
             stage.backwards(self.steps, 50)#self.step_amplitude)
             stage.AG_UC2_1.move_to_limit(1, -3)
+            
+        #acquire vertical plane   
+        stage.AG_UC2_1.move_to_limit(2,-3)
+        max_index=unravel_index(self.fd.intensity_map.argmax(), self.fd.intensity_map.shape)
+        stage.backwards(max_index[0], self.step_amplitude)
+        stage.AG_UC2_2.move_to_limit(1,-2) # check for direction
+        self.fd.int_vert = array([[]])
+        
+        for i in range(0,self.step_range):
+            row=array([])
+            for j in range(0,150):
+                if self.wants_abort:
+                    return
+                row = append(power_meter.getPower(),row)
+                stage.left(self.steps, self.step_amplitude)
+            if i==0:
+                self.fd.intensity_map = append(self.fd.int_vert, row)
+            else:
+                self.fd.intensity_map = vstack((self.fd.int_vert, row))    
+            stage.up(self.steps, 50)#self.step_amplitude)
+            stage.AG_UC2_1.move_to_limit(1, -3)
+        
+        
+        
         
 class CustomTool(BaseTool): 
     #right click
@@ -176,8 +139,9 @@ class FieldDataController(HasTraits):
     
     model=Instance(FieldData)
     
-    plot=Instance(Plot,())
+    plot_container=Instance(Component)
     plot_data=Instance(ArrayPlotData)
+    _image_value = Instance(ImageData)
     renderer = Any()
     
     step_amplitude = Int(16)
@@ -193,7 +157,7 @@ class FieldDataController(HasTraits):
     # Define the view associated with this controller:
     view = View(Item('thread_control' , label="Acquisition", editor = ButtonEditor(label_value = 'label_button_measurment')),
                 'step_amplitude', 'step_range', 'steps',
-                Item('plot',editor=ComponentEditor(),show_label=False),
+                Item('plot_container',editor=ComponentEditor(),show_label=False),
                 menubar=MenuBar(Menu(Action(name="load data", action="load_file"), # action= ... calls the function, given in the string
                                      Action(name="save data", action="save_file"), 
                         Separator(),
@@ -218,21 +182,34 @@ class FieldDataController(HasTraits):
         #self.plotdata = ArrayPlotData(x = self.model.index, y = self.model.data)
 
         self.model.intensity_map = array([[]])
-
+        self.model.intens_vert = array([[]])
         # Create a plot data obect and give it this data
+        self.create_plot_component()
+        
+    def create_plot_component(self):
         self.plot_data = ArrayPlotData()
         self.plot_data.set_data("imagedata", self.model.intensity_map)
+        self.plot_data.set_data('vert_image',self.model.intens_vert)
         # Create a contour polygon plot of the data
-        plot = Plot(self.plot_data, default_origin="top left")
-        plot.bgcolor = 'gray'
-        plot.img_plot("imagedata",
-                             name='my_plot', 
-                            # xbounds=x,
-                             #ybounds=y,
-                             colormap=jet,
-                             hide_grids=True)[0]
-        self.plot = plot
-        
+        self.plot = Plot(self.plot_data, default_origin="top left")
+        self.plot.bgcolor = 'gray'
+        self.plot.padding=5
+        self.plot.padding_left=25
+        self.plot.padding_bottom=20
+        self.plot.img_plot("imagedata", name='my_plot', # xbounds=x,#ybounds=y,
+                             colormap=jet, hide_grids=True)[0]
+                             
+        self.rplot = Plot(self.plot_data)
+        self.rplot.padding=self.plot.padding
+        self.rplot.padding_left=self.plot.padding_left
+        self.rplot.padding_bottom=self.plot.padding_bottom   
+        self.rplot.img_plot('vert_image',name='vert_plot',colormap=jet,bgclor='gray')
+          
+        container = HPlotContainer(use_backbuffer = True)
+        container.add(self.plot)
+        container.add(self.rplot)
+        self.plot_container = container
+            
     def _thread_control_fired(self):
         # if not self.running:
         if self.capture_thread and self.capture_thread.isAlive():
@@ -258,21 +235,11 @@ class FieldDataController(HasTraits):
     @on_trait_change('model.intensity_map')        
     def updatePlot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
-            print 'update Plot'
-            #print 'update plot'
-            #print self.model.intensity_map
-            self.plot_data.set_data("imagedata", new)
-            # Create a contour polygon plot of the data
-            plot = Plot(self.plot_data, default_origin="top left")
-            plot.bgcolor = 'gray'
-            plot.img_plot("imagedata",
-                             name='my_plot', 
-                            # xbounds=x,
-                             #ybounds=y,
-                             colormap=jet,
-                             hide_grids=True)[0]
-            self.plot = plot
-            self.plot.request_redraw()
+            self.plot_data.set_data('imagedata',new)
+            self.plot.delplot('my_plot')
+            self.plot.img_plot("imagedata", name='my_plot', # xbounds=x,#ybounds=y,
+                             colormap=jet, hide_grids=True)[0]
+            self.plot.invalidate_and_redraw()
 
     def save_file(self):
         """
@@ -281,13 +248,17 @@ class FieldDataController(HasTraits):
         ui = self.edit_traits(view='save_file_view')
         if ui.result == True:
             save(self._save_file, self.model.intensity_map)
+            save(self._save_file + '_vertical',self.model.intens_vert)
             
     def load_file(self):
         """
         Callback for the 'Load Image' menu option.
         """
-        ui = self.edit_traits(view='load_file_view')
-        if ui.result == True:
+        import easygui
+        tmp = easygui.fileopenbox(title = "Choose your file",default="*.npy")
+        #ui = self.edit_traits(view='load_file_view')
+        if tmp:
+            self._load_file=tmp
             try:
                 self.model.intensity_map = load(self._load_file)
             except:

@@ -35,7 +35,7 @@ class NEWPORT_AG_UC2(object):
         try:
             self.port = port
             self.device = visa.SerialInstrument(self.port, baud_rate=921600)
-            print self.device.ask('VE').strip()
+            print 'AG-UC2@Port::' + str(port) + ' connected'
             self.setToRemoteControl()
 
         except:
@@ -46,20 +46,14 @@ class NEWPORT_AG_UC2(object):
         try:
             self.setToLocalMode()
             self.device.close()
-            print('AG-UC2' + '@Port:' + self.port + ' connection closed.')
+            print('AG-UC2' + '@Port::' + self.port + ' connection closed.')
         except:
             print 'Unexpected error: ', sys.exc_info()[0]         
              
-    def RelativeMove(self, AxisNumber,NumberOfSteps,StepAmplitude):
+    def relative_move(self, channel, steps):
         '''
         Moves the chosen stage relatively to current position by the distance of NumberOfSteps * StepAmplitude
         Unfortunately it is hard do find out what's the absolute measure of one step.  I'm working on it.
-        
-        StepAmplitude:
-            Between -50 and +50
-            Sets the step amplitude (step size) in positive or negative direction. 
-            If the parameter is positive, it will set the step amplitude in the forward direction. 
-            If the parameter is negative, it will set the step amplitude in the backward direction.
         
         NOTE:
             The step amplitude is a relative measure. The step amplitude corresponds to the amplitude of the electrical signal sent to the Agilis motor. 
@@ -69,8 +63,7 @@ class NEWPORT_AG_UC2(object):
             Also, the motion step size corresponding to a step amplitude setting may vary by position, load, and throughout the life time of the product. 
             The step amplitude setting is not stored after power down. The default value after power-up is 16.
         '''
-        self.device.write(str(AxisNumber) + 'SU' + str(StepAmplitude) )
-        self.device.write(str(AxisNumber)+'PR'+str(NumberOfSteps))
+        self.device.write(str(channel)+'PR'+str(steps))
         self.waitUntilMovementDone()    
         self.CheckForErrorOfPreviousCommand()
         
@@ -110,14 +103,14 @@ class NEWPORT_AG_UC2(object):
             The Error code
         '''
         self.device.write(str(AxisNumber)+'ST')
-        self.CheckForErrorOfPreviousCommand()
-        
+        self.CheckForErrorOfPreviousCommand()       
         
     def get_axis_status(self,AxisNumber):
         '''
         Returns the axis status
         '''
         return self.device.ask(str(AxisNumber)+'TS').strip()
+    
     def get_limit_status(self):
         '''
         Returns the status of the limits
@@ -129,6 +122,11 @@ class NEWPORT_AG_UC2(object):
         '''
         return self.device.ask('PH').strip()
     
+    def print_step_amplitudes(self):
+        print self.device.ask('1SU+?').strip()
+        print self.device.ask('1SU-?').strip()
+        print self.device.ask('2SU+?').strip()
+        print self.device.ask('2SU-?').strip()
     def CheckForErrorOfPreviousCommand(self):
         '''
         Checks if the previous command was executed without error
@@ -152,8 +150,22 @@ class NEWPORT_AG_UC2(object):
         self.CheckForErrorOfPreviousCommand()
         
     def waitUntilMovementDone(self):
-        while self.device.ask('2TS') != '\n2TS0' or self.device.ask('1TS') != '\n1TS0':
-            time.sleep(0.01)
+        try:
+            time.sleep(0.1)
+            status2=self.device.ask('2TS')
+            time.sleep(0.05)
+            status1=self.device.ask('1TS')
+            while (status2 != '\n2TS0' or status1 != '\n1TS0') and (status2 != '\nSTS0' or status1 != '\nTTS0'):
+                time.sleep(0.4)
+                status2=self.device.ask('2TS')
+                time.sleep(0.1)
+                status1=self.device.ask('1TS')
+        except visa.VisaIOError:
+            print 'waiting failed'
+            
+    def set_step_amplitude(self,channel,step_amplitude):
+        self.device.write(str(channel) + 'SU' + str(step_amplitude))
+        self.CheckForErrorOfPreviousCommand()
         
 class PreviousCommandError(Error):
     """

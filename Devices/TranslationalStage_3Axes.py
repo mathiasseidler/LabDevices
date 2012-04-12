@@ -24,21 +24,22 @@ class TranslationalStage_3Axes:
         self.AG_UC2_1 = NEWPORT_AG_UC2(port_1)
         sleep(0.1)
         self.AG_UC2_2 = NEWPORT_AG_UC2(port_2)
+        sleep(0.1)
         
-    def up(self,steps,step_amplitude):
-        self.AG_UC2_2.RelativeMove(self.channel_zaxes, steps, step_amplitude)
+    def up(self,steps):
+        self.AG_UC2_2.relative_move(self.channel_zaxes, steps)
         
-    def down(self,steps,step_amplitude):
-        self.AG_UC2_2.RelativeMove(self.channel_zaxes, -steps, step_amplitude)
+    def down(self,steps):
+        self.AG_UC2_2.relative_move(self.channel_zaxes, -steps)
         
-    def forwards(self,steps,step_amplitude):
-        self.AG_UC2_1.RelativeMove(self.channel_yaxes, -steps, step_amplitude)
+    def forwards(self,steps):
+        self.AG_UC2_1.relative_move(self.channel_yaxes, -steps)
         
-    def backwards(self,steps,step_amplitude):
-        self.AG_UC2_1.RelativeMove(self.channel_yaxes, steps, step_amplitude)
+    def backwards(self,steps):
+        self.AG_UC2_1.relative_move(self.channel_yaxes, steps)
     
-    def left(self,steps,step_amplitude):
-        self.AG_UC2_1.RelativeMove(self.channel_xaxes, steps, step_amplitude)
+    def left(self,steps):
+        self.AG_UC2_1.relative_move(self.channel_xaxes, steps)
     
-    def right(self,steps,step_amplitude):
-        self.AG_UC2_1.RelativeMove(self.channel_xaxes, -steps, step_amplitude)
+    def right(self,steps):
+        self.AG_UC2_1.relative_move(self.channel_xaxes, -steps)

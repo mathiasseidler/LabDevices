@@ -18,7 +18,7 @@ from enthought.chaco.api import ArrayDataSource, ArrayPlotData, ColorBar, Contou
                                  HPlotContainer, ImageData, LinearMapper, \
                                  LinePlot, OverlayPlotContainer, Plot, PlotAxis, ImageData
                                  
-from enthought.enable.api import Window                        
+from enthought.enable.api import Window                     
                          
 from enthought.enable.api import ComponentEditor, Component
 
@@ -68,11 +68,9 @@ def append_right_oriented(matrix, row):
 class FieldData(HasTraits):
     """ Data and Index of the field
     """  
-    __slots__ = 'intensity_map','data', 'index'
+    __slots__ = 'intensity_map','intens_vert'
     intensity_map = Array
     intens_vert = Array
-    data = Array
-    index = Array
     
 class CaptureThread(Thread):
     def run(self):
@@ -85,46 +83,53 @@ class CaptureThread(Thread):
         except:
             print "Exception raised: Devices not available"
             return
-        
+        to_limit_speed = 2
         self.fd.intensity_map=array([[]])
-        stage.AG_UC2_1.move_to_limit(1, -3)
-        for i in range(0,self.step_range):
+        stage.AG_UC2_1.set_step_amplitude(1, self.step_amplitude_side)
+        stage.AG_UC2_1.set_step_amplitude(1, -self.step_amplitude_side)
+        stage.AG_UC2_1.set_step_amplitude(2, self.step_amplitude_backwards)
+        stage.AG_UC2_1.set_step_amplitude(2, -self.step_amplitude_backwards)
+        stage.AG_UC2_2.set_step_amplitude(1, self.step_amplitude_up)
+        stage.AG_UC2_2.set_step_amplitude(1, -self.step_amplitude_up)        
+        stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+        stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
+        stage.AG_UC2_1.print_step_amplitudes()
+        stage.AG_UC2_2.print_step_amplitudes()
+
+        for i in range(0,self.steps_backwards):
             row=array([])
-            for j in range(0,150):
+            for j in range(0,self.steps_side):
                 if self.wants_abort:
                     return
                 row = append(power_meter.getPower(),row)
-                stage.left(self.steps, self.step_amplitude)
+                stage.left(self.steps_per_move)
             if i==0:
                 self.fd.intensity_map = append(self.fd.intensity_map, row)
             else:
                 self.fd.intensity_map = vstack((self.fd.intensity_map, row))    
-            stage.backwards(self.steps, 50)#self.step_amplitude)
-            stage.AG_UC2_1.move_to_limit(1, -3)
+            stage.backwards(self.steps_per_move)
+            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
             
         #acquire vertical plane   
-        stage.AG_UC2_1.move_to_limit(2,-3)
+        stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
         max_index=unravel_index(self.fd.intensity_map.argmax(), self.fd.intensity_map.shape)
-        stage.backwards(max_index[0], self.step_amplitude)
-        stage.AG_UC2_2.move_to_limit(1,-2) # check for direction
-        self.fd.int_vert = array([[]])
+        stage.backwards(max_index[0])
+        stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) # check for direction
+        self.fd.intens_vert = array([[]])
         
-        for i in range(0,self.step_range):
+        for i in range(0,self.steps_up):
             row=array([])
-            for j in range(0,150):
+            for j in range(0,self.steps_side):
                 if self.wants_abort:
                     return
                 row = append(power_meter.getPower(),row)
-                stage.left(self.steps, self.step_amplitude)
+                stage.left(self.steps_per_move)
             if i==0:
-                self.fd.intensity_map = append(self.fd.int_vert, row)
+               self.fd.intens_vert = append(self.fd.intens_vert, row)
             else:
-                self.fd.intensity_map = vstack((self.fd.int_vert, row))    
-            stage.up(self.steps, 50)#self.step_amplitude)
-            stage.AG_UC2_1.move_to_limit(1, -3)
-        
-        
-        
+                self.fd.intens_vert = vstack((self.fd.intens_vert, row))    
+            stage.up(self.steps_per_move)
+            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
         
 class CustomTool(BaseTool): 
     #right click
@@ -144,9 +149,13 @@ class FieldDataController(HasTraits):
     _image_value = Instance(ImageData)
     renderer = Any()
     
-    step_amplitude = Int(16)
-    step_range = Int(100)
-    steps = Int(5)
+    steps_backwards = Int(100)
+    steps_side = Int(20)
+    steps_up = Int(60)
+    steps_per_move = Int(5)
+    step_amplitude_side = Int(16)
+    step_amplitude_up=Int(25)
+    step_amplitude_backwards=Int(50)
     
     thread_control = Event
     capture_thread=Instance(CaptureThread) 
@@ -155,8 +164,10 @@ class FieldDataController(HasTraits):
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])
     # Define the view associated with this controller:
-    view = View(Item('thread_control' , label="Acquisition", editor = ButtonEditor(label_value = 'label_button_measurment')),
-                'step_amplitude', 'step_range', 'steps',
+    view = View(HGroup(VGroup('steps_backwards','steps_side','steps_up','steps_per_move'),
+                       VGroup('step_amplitude_backwards','step_amplitude_side','step_amplitude_up'),
+                       VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')),
+                              'model')),
                 Item('plot_container',editor=ComponentEditor(),show_label=False),
                 menubar=MenuBar(Menu(Action(name="load data", action="load_file"), # action= ... calls the function, given in the string
                                      Action(name="save data", action="save_file"), 
@@ -164,7 +175,8 @@ class FieldDataController(HasTraits):
                         CloseAction,
                         name="File")),
                 #key_bindings = key_bindings,
-                resizable=True)
+                resizable=True,
+                width=700)
     
     save_file_view = View(Item('_save_file'), 
                           buttons=OKCancelButtons, 
@@ -191,19 +203,22 @@ class FieldDataController(HasTraits):
         self.plot_data.set_data("imagedata", self.model.intensity_map)
         self.plot_data.set_data('vert_image',self.model.intens_vert)
         # Create a contour polygon plot of the data
-        self.plot = Plot(self.plot_data, default_origin="top left")
-        self.plot.bgcolor = 'gray'
+        self.plot = Plot(self.plot_data)
+        self.plot.title = 'Horizontal plane'
         self.plot.padding=5
+        self.plot.padding_top = 22
         self.plot.padding_left=25
         self.plot.padding_bottom=20
         self.plot.img_plot("imagedata", name='my_plot', # xbounds=x,#ybounds=y,
-                             colormap=jet, hide_grids=True)[0]
+                             colormap=jet, hide_grids=True)
                              
         self.rplot = Plot(self.plot_data)
+        self.rplot.title = 'Vertical plane'
         self.rplot.padding=self.plot.padding
+        self.rplot.padding_top = self.plot.padding_top
         self.rplot.padding_left=self.plot.padding_left
         self.rplot.padding_bottom=self.plot.padding_bottom   
-        self.rplot.img_plot('vert_image',name='vert_plot',colormap=jet,bgclor='gray')
+        self.rplot.img_plot('vert_image',name='vert_plot',colormap=jet)
           
         container = HPlotContainer(use_backbuffer = True)
         container.add(self.plot)
@@ -220,10 +235,14 @@ class FieldDataController(HasTraits):
             self.capture_thread.wants_abort = False
             self.capture_thread.fd = self.model
             self.capture_thread.plotdata= self.plot_data
-            self.capture_thread.step_amplitude = self.step_amplitude
+            self.capture_thread.step_amplitude_side = self.step_amplitude_side
+            self.capture_thread.step_amplitude_up = self.step_amplitude_up
+            self.capture_thread.step_amplitude_backwards = self.step_amplitude_backwards
             self.capture_thread.start()
-            self.capture_thread.step_range = self.step_range
-            self.capture_thread.steps = self.steps
+            self.capture_thread.steps_side = self.steps_side
+            self.capture_thread.steps_up = self.steps_up
+            self.capture_thread.steps_backwards = self.steps_backwards
+            self.capture_thread.steps_per_move = self.steps_per_move
             self.label_button_measurment = 'Stop acquisition'
             #import time
             #time.sleep(0.1)
@@ -233,13 +252,14 @@ class FieldDataController(HasTraits):
             self.capture_thread.stepamplitude = self.step_amplitude
             
     @on_trait_change('model.intensity_map')        
-    def updatePlot(self,name,old,new):
+    def update_plot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
-            self.plot_data.set_data('imagedata',new)
-            self.plot.delplot('my_plot')
-            self.plot.img_plot("imagedata", name='my_plot', # xbounds=x,#ybounds=y,
-                             colormap=jet, hide_grids=True)[0]
-            self.plot.invalidate_and_redraw()
+            self.create_plot_component()
+            
+    @on_trait_change('model.intens_vert')        
+    def update_rplot(self,name,old,new):
+        if self.plot_data and new.ndim > 1:
+            self.create_plot_component()
 
     def save_file(self):
         """
@@ -266,5 +286,5 @@ class FieldDataController(HasTraits):
             
         
     
-ui = FieldDataController(model=FieldData(index=array([]),data=array([]), intensity_map=array([[0][0]])))
+ui = FieldDataController(model=FieldData(intensity_map=array([[0][0]])))
 ui.configure_traits(view='view')

@@ -67,6 +67,17 @@ class NEWPORT_AG_UC2(object):
         self.waitUntilMovementDone()    
         self.CheckForErrorOfPreviousCommand()
         
+    def jog(self, channel, jog_mode):
+        '''
+        jog_mode: -4,-3,-2,-1,0,1,2,3,4
+        '''
+        self.device.write(str(channel) + 'JA' + str(jog_mode))
+        self.CheckForErrorOfPreviousCommand()
+        
+    def stop_jog(self,channel):
+        self.device.write(str(channel)+'JA0')   
+        self.CheckForErrorOfPreviousCommand() 
+        
     def MoveToMiddlePosition(self):   
         '''
         Move both stages into the middle position

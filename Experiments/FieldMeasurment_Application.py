@@ -73,9 +73,64 @@ class FieldData(HasTraits):
     intens_vert = Array
     
 class CaptureThread(Thread):
+
     def run(self):
         self.measure3()
+    def measure4(self): 
+        try:
+            power_meter  = Thorlabs_PM100D("PM100D")
+            stage       = TranslationalStage_3Axes('COM3','COM4')   
+        except:
+            print "Exception raised: Devices not available"
+            return
+        to_limit_speed = 2
+        self.fd.intensity_map=array([[]])
+        stage.AG_UC2_1.set_step_amplitude(1, self.step_amplitude_side)
+        stage.AG_UC2_1.set_step_amplitude(1, -self.step_amplitude_side)
+        stage.AG_UC2_1.set_step_amplitude(2, self.step_amplitude_backwards)
+        stage.AG_UC2_1.set_step_amplitude(2, -self.step_amplitude_backwards)
+        stage.AG_UC2_2.set_step_amplitude(1, self.step_amplitude_up)
+        stage.AG_UC2_2.set_step_amplitude(1, -self.step_amplitude_up)        
+        stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+        stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
+        stage.AG_UC2_1.print_step_amplitudes()
+        stage.AG_UC2_2.print_step_amplitudes()
+
+        for i in range(0,self.steps_backwards):
+            row=array([])
+            for j in range(0,self.steps_side):
+                if self.wants_abort:
+                    return
+                row = append(power_meter.getPower(),row)
+                stage.left(self.steps_per_move)
+            if i==0:
+                self.fd.intensity_map = append(self.fd.intensity_map, row)
+            else:
+                self.fd.intensity_map = vstack((self.fd.intensity_map, row))    
+            stage.backwards(self.steps_per_move)
+            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
             
+        #acquire vertical plane   
+        stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
+        max_index=unravel_index(self.fd.intensity_map.argmax(), self.fd.intensity_map.shape)
+        stage.backwards(max_index[0])
+        stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) # check for direction
+        self.fd.intens_vert = array([[]])
+        
+        for i in range(0,self.steps_up):
+            row=array([])
+            for j in range(0,self.steps_side):
+                if self.wants_abort:
+                    return
+                row = append(power_meter.getPower(),row)
+                stage.left(self.steps_per_move)
+            if i==0:
+                self.fd.intens_vert = append(self.fd.intens_vert, row)
+            else:
+                self.fd.intens_vert = vstack((self.fd.intens_vert, row))    
+            stage.up(self.steps_per_move)
+            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+                  
     def measure3(self):
         try:
             power_meter  = Thorlabs_PM100D("PM100D")
@@ -137,8 +192,10 @@ class CustomTool(BaseTool):
         '''
         on right click
         '''
-        print event
-            
+        print event            
+
+    
+ 
             
 class FieldDataController(HasTraits):
     
@@ -166,15 +223,13 @@ class FieldDataController(HasTraits):
     # Define the view associated with this controller:
     view = View(HGroup(VGroup('steps_backwards','steps_side','steps_up','steps_per_move'),
                        VGroup('step_amplitude_backwards','step_amplitude_side','step_amplitude_up'),
-                       VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')),
-                              'model')),
+                       VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')))),
                 Item('plot_container',editor=ComponentEditor(),show_label=False),
-                menubar=MenuBar(Menu(Action(name="load data", action="load_file"), # action= ... calls the function, given in the string
-                                     Action(name="save data", action="save_file"), 
-                        Separator(),
-                        CloseAction,
-                        name="File")),
-                #key_bindings = key_bindings,
+                menubar=MenuBar(Menu("_",Action(name="Load data", action="load_file"), # action= ... calls the function, given in the string
+                                     Action(name="Save data", action="save_file"), 
+                                    '_',
+                                    CloseAction,
+                                    name="File")),
                 resizable=True,
                 width=700)
     

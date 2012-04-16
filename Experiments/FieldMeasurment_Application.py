@@ -193,9 +193,6 @@ class CustomTool(BaseTool):
         on right click
         '''
         print event            
-
-    
- 
             
 class FieldDataController(HasTraits):
     
@@ -293,11 +290,11 @@ class FieldDataController(HasTraits):
             self.capture_thread.step_amplitude_side = self.step_amplitude_side
             self.capture_thread.step_amplitude_up = self.step_amplitude_up
             self.capture_thread.step_amplitude_backwards = self.step_amplitude_backwards
-            self.capture_thread.start()
             self.capture_thread.steps_side = self.steps_side
             self.capture_thread.steps_up = self.steps_up
             self.capture_thread.steps_backwards = self.steps_backwards
             self.capture_thread.steps_per_move = self.steps_per_move
+            self.capture_thread.start()
             self.label_button_measurment = 'Stop acquisition'
             #import time
             #time.sleep(0.1)

@@ -123,10 +123,10 @@ class Demo(HasTraits):
     traits_view = View(
                     Group(
                         Item('plot', editor=ComponentEditor(size=size), show_label=False),orientation = "vertical"),
-                        menubar=MenuBar(Menu(Action(name="Load numpy-data", action="load_file"), # action= ... calls the function, given in the string
-                        Separator(),
-                        CloseAction,
-                        name="File")),
+                        menubar=MenuBar(Menu(Separator(),Action(name="Load numpy-data", action="load_file"), # action= ... calls the function, given in the string
+                                             Separator(),
+                                             CloseAction,
+                                             name="File")),
                     resizable=True, title=title
                     )
     def _plot_default(self):

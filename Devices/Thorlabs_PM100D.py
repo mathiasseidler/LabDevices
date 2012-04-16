@@ -19,6 +19,8 @@ class Thorlabs_PM100D:
         try:
             self.port = port
             self.instr=visa.Instrument(self.port)
+            self.instr.write('pow:unit W')
+            self.instr.write('conf:pow')
             print 'ThorlabsPM100D@Port::' + str(port) + ' connected'
         except:
             print 'Unexpected error: ', sys.exc_info()[0]
@@ -29,7 +31,7 @@ class Thorlabs_PM100D:
         '''
         try:
             self.instr.close()
-            print('PM100D' + '@Port::' + self.port + ' connection closed')
+            print('ThorlabsPM100D' + '@Port::' + self.port + ' connection closed')
         except:
             print 'Unexpected error: ', sys.exc_info()[0]  
         
@@ -38,8 +40,6 @@ class Thorlabs_PM100D:
         return: 
             Power in Watt
         '''
-        self.instr.write('pow:unit W')
-        self.instr.write('conf:pow')
         return float(self.instr.ask("read?"))
     
     def set_wavelength(self, length):

@@ -3,35 +3,58 @@ Created on 13.04.2012
 
 @author: Mathias
 '''
-from enthought.traits.api import HasTraits, Event, Array, Str, Instance, Button
+from enthought.traits.api import HasTraits, Event, Array, Str, Instance, Button, on_trait_change
 from enthought.traits.ui.api import View, Item, ButtonEditor, Action
 from enthought.enable.api import Component, ComponentEditor
 from threading import Thread
 
 
+from enthought.chaco.api import ArrayDataSource, BarPlot, DataRange1D, \
+        LinearMapper, VPlotContainer, PlotAxis, FilledLinePlot, \
+        add_default_grids, PlotLabel, add_default_axes
+
+
+
 #my own classes 
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
+from ScalarField3DPlot import ScalarField3DPlot_GUI
+from HandyClasses.IntensityFieldStageController import find_vertical_max
+
 
 import time
 import numpy as np
-from Mayavi import Mayavi
+
 
 class FieldData(HasTraits):
-    __slots__ = 'data'
+    __slots__ = 'data', 'height'
     data = Array
+    height = Array
     
 
         
 class AcquireThread(Thread):
-    PLUS = 1
-    MINUS= -1
     def __init__(self,*args, **kw):
         super(AcquireThread, self).__init__(*args, **kw)
         #self.power_meter  = Thorlabs_PM100D("PM100D")
         #self.stage        = TranslationalStage_3Axes('COM3','COM4')   
     def run(self):
-        self.threed_map_measurement()
+        self.along_maxium()
+    
+    def along_maxium(self):
+        power_meter  = Thorlabs_PM100D("PM100D")
+        stage        = TranslationalStage_3Axes('COM3','COM4')
+        stage.AG_UC2_2.move_to_limit(1,-2)
+        a = np.array([])
+        std = np.array([])
+        height = np.array([])
+        self.model.height = height
+        for i in xrange(0,20):
+            h, mean, stdev = find_vertical_max(power_meter, stage, 1e-5)
+            a = np.append(a, mean)
+            std= np.append(std,stdev)
+            height = np.append(height, h)
+            stage.backwards(1)
     
     def threed_map_measurement(self):
         power_meter  = Thorlabs_PM100D("PM100D")
@@ -65,36 +88,7 @@ class AcquireThread(Thread):
             stage.backwards(1)
             stage.AG_UC2_2.move_to_limit(1, -speed)
             stage.AG_UC2_1.move_to_limit(1, -speed)
-    
-          
-    def find_vertical_max(self):
-        power_meter  = Thorlabs_PM100D("PM100D")
-        stage        = TranslationalStage_3Axes('COM3','COM4')
-        negative_slope = False
-        a = np.array([])
-        std = np.array([])
-        treshold = 1e-5
-        
-        # this is just searching into the upwards direction
-        for i in range(0,10):
-            tmp = np.array([])
-            tmp = np.append(tmp, power_meter.getPower())
-            a = np.append(a, np.average(tmp))
-            std= np.append(std,np.std(tmp))
-        t = time.time()    
-        while not negative_slope and (time.time()-t) < 60:
-            tmp = np.array([])
-            stage.AG_UC2_2.jog(1, 1)
-            for i in range(0,10):
-                tmp = np.append(tmp, power_meter.getPower())
-            std = np.append(std,np.std(tmp))
-            a = np.append(a, np.average(tmp))
-            if a[-1]+std[-1] < a[-2] and a[-1] > treshold:
-                negative_slope = True
-        stage.AG_UC2_2.stop_jog(1)                     
-
-        
-        
+         
 class OpticalAxisMainGUI(HasTraits):
     '''
     classdocs
@@ -107,8 +101,13 @@ class OpticalAxisMainGUI(HasTraits):
     plot_size=(600,400)
     plot_item = Item('plot_container',editor=ComponentEditor(size=plot_size),show_label=False)
     
+    # data sources for the plot
+    index_ds = Instance(ArrayDataSource)
+    value_ds = Instance(ArrayDataSource)
+    
+    
     # Maya
-    mayavi = Instance(Mayavi,())
+    mayavi = Instance(ScalarField3DPlot_GUI,())
     mayavi_item = Item('mayavi', style='custom')
     
     # acquire threads
@@ -123,8 +122,8 @@ class OpticalAxisMainGUI(HasTraits):
     status_field = Str("Welcome\n This is multiline\n\n")
     
     view = View(button_tc, 
-                #plot_item,
-                mayavi_item,
+                plot_item,
+                #mayavi_item,
                 Item('status_field', show_label=False, style='readonly'),
                 resizable=True)
     
@@ -137,7 +136,39 @@ class OpticalAxisMainGUI(HasTraits):
             self.capture_thread.model = self.data_model
             self.capture_thread.gui = self
             self.capture_thread.start()
+            
+    def _plot_container_default(self):
+        index = np.arange(100)
+        value = 100.0 * index
+        self.value_ds = ArrayDataSource(value)
+        return create_plot(self.value_ds)
     
+    @on_trait_change('data_model.height')        
+    def update_plot(self,name,old,new):
+        self.value_ds.set_data(new)
+
+def create_plot(value_ds):
+    numpoints = value_ds.get_size()
+    index = np.arange(numpoints)
+    index_ds = ArrayDataSource(index)
+    
+    xmapper = LinearMapper(range=DataRange1D(index_ds))
+    value_mapper = LinearMapper(range=DataRange1D(value_ds))
+    
+    value_plot = FilledLinePlot(index = index_ds, value = value_ds,
+                                index_mapper = xmapper,
+                                value_mapper = value_mapper,
+                                edge_color = "black",
+                                face_color = (0,0,1,0.4),
+                                bgcolor = "white",
+                                border_visible = True)
+    add_default_grids(value_plot)
+    #add_default_axes(value_plot)
+    value_plot.overlays.append(PlotAxis(value_plot, orientation='left'))
+    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
+    value_plot.padding = 30
+    return value_plot    
+
 gui=OpticalAxisMainGUI()
 gui.configure_traits()
         

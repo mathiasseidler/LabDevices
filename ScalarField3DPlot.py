@@ -3,7 +3,7 @@
 # License: BSD Style.
 
 # Standard imports.
-from numpy import sqrt, sin, mgrid, ogrid
+from numpy import sqrt, sin, mgrid, ogrid, random, mgrid, asarray
 
 # Enthought imports.
 from traits.api import HasTraits, Instance, Property, Enum
@@ -13,7 +13,7 @@ from mayavi.core.ui.engine_view import EngineView
 from mayavi.tools.mlab_scene_model import MlabSceneModel
 from mayavi import mlab
 
-class Mayavi(HasTraits):
+class ScalarField3DPlot_GUI(HasTraits):
 
     # The scene model.
     scene = Instance(MlabSceneModel, ())
@@ -51,23 +51,29 @@ class Mayavi(HasTraits):
     def generate_data_mayavi(self):
         """Shows how you can generate data using mayavi instead of mlab."""
         #from mayavi.sources.api import ParametricSurface
-        #from mayavi.modules.api import Outline, Surface
+        from mayavi.modules.api import Outline, Surface, Volume, ScalarCutPlane, ImagePlaneWidget
         x, y, z = ogrid[-10:10:20j, -10:10:20j, -10:10:20j]
         s = sin(x*y*z)/(x*y*z)
-        e = self.scene.engine
-        #s = ParametricSurface()
-        #e.add_source(s)
-        #e.add_module(Outline())
-        #e.add_module(Surface())
-        #mlab.pipeline.volume(mlab.pipeline.scalar_field(s), vmin=0.2, vmax=0.8)
+        e = self.scene.engine                   
+        #src = mlab.pipeline.scalar_field(s)
         
-        src = mlab.pipeline.scalar_field(s)
-        mlab.pipeline.iso_surface(src, contours=[s.min()+0.1*s.ptp(), ], opacity=0.1)
-        mlab.pipeline.iso_surface(src, contours=[s.max()-0.1*s.ptp(), ],)
-        mlab.pipeline.image_plane_widget(src,
-                            plane_orientation='z_axes',
-                            slice_index=10,
-                        )
+        from enthought.mayavi.sources.api import ArraySource 
+        src = ArraySource()
+        src.scalar_data = s
+        e.add_source(src)
+        v = Volume()
+        from tvtk.util.ctf import PiecewiseFunction
+        otf = PiecewiseFunction()
+        otf.add_point(0, 0)
+        otf.add_point(0.4*255, 0)
+        otf.add_point(0.8*255,1)
+        v._otf = otf
+        v.volume_property.set_scalar_opacity(otf)
+        e.add_module(v)
+        cp = ScalarCutPlane()
+        e.add_module(cp)
+        cp.implicit_plane.normal = 0,0,1
+        src.scalar_data  = random.random((20,20,20))
 
     def _selection_change(self, old, new):
         self.trait_property_changed('current_selection', old, new)
@@ -76,5 +82,5 @@ class Mayavi(HasTraits):
         return self.scene.engine.current_selection
     
 if __name__ == '__main__':
-    m = Mayavi()
+    m = ScalarField3DPlot_GUI()
     m.configure_traits()

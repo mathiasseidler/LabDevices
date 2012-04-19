@@ -16,7 +16,7 @@ from enthought.enable.api import Component, ComponentEditor, Window
 from enthought.traits.api import HasTraits, Instance, File, Str
 from enthought.traits.ui.api import Item, Group, View
 # Chaco imports
-from enthought.chaco.api import ArrayPlotData, jet, Plot, ColorBar, HPlotContainer, LinearMapper
+from enthought.chaco.api import ArrayPlotData, jet, Plot, ColorBar, HPlotContainer, LinearMapper, PlotGraphicsContext
 from enthought.chaco.tools.api import PanTool, ZoomTool
 from enthought.chaco.tools.api import TraitsTool
 from enthought.chaco.tools import toolbars
@@ -26,20 +26,17 @@ from enthought.traits.ui.menu import Action, CloseAction, Menu, \
 from enthought.chaco.scales.formatters import BasicFormatter
 from enthought.chaco.tools.image_inspector_tool import ImageInspectorTool, ImageInspectorOverlay
 
+import easygui
                     
 #===============================================================================
 # # Create the Chaco plot.
 #===============================================================================
 def _create_plot_component(file_name):
     # Create a scalar field to colormap
-    print(file_name)
     z = load(file_name)
-    #xs = linspace(0, 10, 600)
-    #ys = linspace(0, 5, 600)
-    #x, y = meshgrid(xs,ys)
-    # Create a plot data obect and give it this data
     pd = ArrayPlotData()
     pd.set_data("imagedata", z)
+    
     # Create the plot
     plot = Plot(pd)
     plot.bgcolor = 'gray'
@@ -123,30 +120,57 @@ class Demo(HasTraits):
     traits_view = View(
                     Group(
                         Item('plot', editor=ComponentEditor(size=size), show_label=False),orientation = "vertical"),
-                        menubar=MenuBar(Menu(Separator(),Action(name="Load numpy-data", action="load_file"), # action= ... calls the function, given in the string
+                        menubar=MenuBar(Menu(Separator(),
+                                             Action(name="Load Numpy-data", action="load_file"), # action= ... calls the function, given in the string
+                                             Action(name="Save Plot", action="save_plot"),
                                              Separator(),
                                              CloseAction,
                                              name="File")),
                     resizable=True, title=title
                     )
     def _plot_default(self):
-        try:
-            return _create_plot_component(self.file_name)
-        except:
-            print 'some mistakes happened'
+        tmp = easygui.fileopenbox(title = "Choose your file",default="*.npy")
+        if tmp:
+            try:
+                self.file_name = tmp
+                return _create_plot_component(self.file_name)
+            except:
+                print 'Loading file failed'
+        
+        
+        #=======================================================================
+        # try:
+        #    return _create_plot_component(self.file_name)
+        # except:
+        #    print 'file not found'
+        #=======================================================================
      
     def load_file(self):
         """
         Callback for the 'Load Image' menu option.
         """
-        import easygui
-        self.file_name = easygui.fileopenbox()
+        tmp = easygui.fileopenbox(title = "Choose your file",default="*.npy")
         print self.file_name
-        if self.file_name:
+        if tmp:
             try:
+                self.file_name = tmp
                 self.plot=self._plot_default()
             except:
                 print 'Loading file failed'
-   
+    def save_plot(self):
+        from easygui import filesavebox
+        file_string=str(self.file_name.rstrip('.npy')+'.png')
+        tmp = filesavebox(title = "Save to", default=file_string)
+        if tmp:
+            try:
+                self._save_file = tmp + '.png'
+                win_size = self.plot.outer_bounds
+                plot_gc = PlotGraphicsContext(win_size)
+                plot_gc.render_component(self.plot)
+                plot_gc.save(self._save_file)
+            except:
+                print 'Saving failed'
+        # Create a graphics context of the right size
+
 demo = Demo()
 demo.configure_traits(view='traits_view')

@@ -5,6 +5,8 @@ Created on Feb 14, 2012
 '''
 import visa
 import sys
+import numpy as np
+import time
 
 class Thorlabs_PM100D:
     '''
@@ -51,5 +53,19 @@ class Thorlabs_PM100D:
                 self.instr.write("CORR:WAV length")
             else:
                 print 'Error: specified wavelength must be between 400 and 1100 nm'
-    
+                
+    def AverageOverTime(self, t):
+        '''
+        Takes several measurements over the time period t [s] and returns the mean
+        and standard deviation.
+        '''
+        if t < 1:
+            print 'Error: specify longer period.'
+        else:
+            self.inst.write("CONF:POW")
+            a = np.array([float(self.inst.ask("READ?"))])
+            for i in xrange(100):
+                time.sleep(t / 100.0)
+                a = np.append(a, [float(self.inst.ask("READ?"))])
+            return np.mean(a), np.var(a), np.std(a)
         

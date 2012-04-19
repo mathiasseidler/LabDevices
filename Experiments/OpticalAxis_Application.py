@@ -163,10 +163,10 @@ def create_plot(value_ds, index_ds):
                                 bgcolor = "white",
                                 border_visible = True)
     add_default_grids(value_plot)
-    #add_default_axes(value_plot)
-    value_plot.overlays.append(PlotAxis(value_plot, orientation='left'))
-    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
-    value_plot.padding = 30
+    add_default_axes(value_plot)
+    #value_plot.overlays.append(PlotAxis(value_plot, orientation='left'))
+    #value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
+    value_plot.padding = 50
     return value_plot    
 
 gui=OpticalAxisMainGUI()

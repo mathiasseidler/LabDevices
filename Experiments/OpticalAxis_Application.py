@@ -141,17 +141,17 @@ class OpticalAxisMainGUI(HasTraits):
         index = np.arange(100)
         value = 100.0 * index
         self.value_ds = ArrayDataSource(value)
-        return create_plot(self.value_ds)
+        self.index_ds = ArrayDataSource(index)
+        return create_plot(self.value_ds, self.index_ds)
     
     @on_trait_change('data_model.height')        
     def update_plot(self,name,old,new):
         self.value_ds.set_data(new)
+        numpoints = self.value_ds.get_size()
+        index = np.arange(numpoints)
+        self.index_ds.set_value(index)
 
-def create_plot(value_ds):
-    numpoints = value_ds.get_size()
-    index = np.arange(numpoints)
-    index_ds = ArrayDataSource(index)
-    
+def create_plot(value_ds, index_ds):
     xmapper = LinearMapper(range=DataRange1D(index_ds))
     value_mapper = LinearMapper(range=DataRange1D(value_ds))
     

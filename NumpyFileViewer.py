@@ -111,7 +111,7 @@ title="Basic Colormapped Image Plot"
 #===============================================================================
 # # Demo class that is used by the demo.py application.
 #===============================================================================
-class Demo(HasTraits):
+class NumpyFileViewer(HasTraits):
     plot = Instance(Component)
     file_name=Str('measure_3.npy')
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
@@ -171,6 +171,6 @@ class Demo(HasTraits):
             except:
                 print 'Saving failed'
         # Create a graphics context of the right size
-
-demo = Demo()
-demo.configure_traits(view='traits_view')
+if __name__ == '__main__':
+    demo = NumpyFileViewer()
+    demo.configure_traits(view='traits_view')

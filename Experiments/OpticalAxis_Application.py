@@ -11,7 +11,7 @@ from threading import Thread
 
 from enthought.chaco.api import ArrayDataSource, BarPlot, DataRange1D, \
         LinearMapper, VPlotContainer, PlotAxis, FilledLinePlot, \
-        add_default_grids, PlotLabel, add_default_axes
+        add_default_grids, PlotLabel, add_default_axes, HPlotContainer
 
 
 
@@ -19,7 +19,7 @@ from enthought.chaco.api import ArrayDataSource, BarPlot, DataRange1D, \
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
 from ScalarField3DPlot import ScalarField3DPlot_GUI
-from HandyClasses.IntensityFieldStageController import find_vertical_max
+from HandyClasses.IntensityFieldStageController import find_vertical_max, find_horizontal_max
 
 
 import time
@@ -27,9 +27,10 @@ import numpy as np
 
 
 class FieldData(HasTraits):
-    __slots__ = 'data', 'height'
-    data = Array
+    __slots__ = 'data', 'height', 'horizontal_pos'
+    power_data = Array
     height = Array
+    horizontal_pos = Array
     
 
         
@@ -45,20 +46,35 @@ class AcquireThread(Thread):
         power_meter  = Thorlabs_PM100D("PM100D")
         stage        = TranslationalStage_3Axes('COM3','COM4')
         stage.AG_UC2_2.move_to_limit(1,-2)
-        a = np.array([])
+        self.model.power_data = np.array([])
         std = np.array([])
         self.model.height =  np.array([])
+        self.model.horizontal_pos = np.array([])
         
+        # initial vertical positioning
         relative_height, mean, stdev = find_vertical_max(power_meter, stage, 1e-5)
-        a = np.append(a, mean)
+        self.model.power_data = np.append(self.model.power_data, mean)
         std= np.append(std,stdev)
         self.model.height = np.append(self.model.height, relative_height)
         
-        for i in xrange(0,40):
+        # initial horizontal positioning
+        stage.AG_UC2_1.move_to_limit(1, -2)
+        relative_horizontal, mean, stdev = find_horizontal_max(power_meter, stage, 1e-5)
+        self.model.horizontal_pos = np.append(self.model.horizontal_pos, relative_horizontal)
+        
+        # move along the maximum in the field
+        for i in xrange(0,200):
+            if self.wants_abort == True:
+                break
             relative_height, mean, stdev = find_vertical_max(power_meter, stage, 1e-5)
-            a = np.append(a, mean)
-            std= np.append(std,stdev)
             self.model.height = np.append(self.model.height, relative_height + self.model.height[0])
+            
+            relative_horizontal, mean, stdev = find_horizontal_max(power_meter, stage, 1e-5)            
+            self.model.horizontal_pos = np.append(self.model.horizontal_pos, 
+                                                  relative_horizontal+self.model.horizontal_pos[0])
+            
+            self.model.power_data = np.append(self.model.power_data, mean)
+            std= np.append(std,stdev)         
             stage.backwards(1)
     
     def threed_map_measurement(self):
@@ -109,7 +125,10 @@ class OpticalAxisMainGUI(HasTraits):
     # data sources for the plot
     index_ds = Instance(ArrayDataSource)
     value_ds = Instance(ArrayDataSource)
-    
+    horizontal_pos_ds = Instance(ArrayDataSource)
+    horizontal_index_ds = Instance(ArrayDataSource)
+    int_val_ds = Instance(ArrayDataSource)
+    int_index_ds = Instance(ArrayDataSource)
     
     # Maya
     mayavi = Instance(ScalarField3DPlot_GUI,())
@@ -147,7 +166,12 @@ class OpticalAxisMainGUI(HasTraits):
         value = 100.0 * index
         self.value_ds = ArrayDataSource(value)
         self.index_ds = ArrayDataSource(index)
-        return create_plot(self.value_ds, self.index_ds)
+        self.horizontal_pos_ds = ArrayDataSource(10 * index)
+        self.horizontal_index_ds = ArrayDataSource(index)
+        self.int_index_ds = ArrayDataSource(index)
+        self.int_val_ds = ArrayDataSource(index*1000)
+        return create_plot(self.value_ds, self.index_ds, self.horizontal_pos_ds, self.horizontal_index_ds,
+                           self.int_val_ds, self.int_index_ds)
     
     @on_trait_change('data_model.height')        
     def update_plot(self,name,old,new):
@@ -155,26 +179,75 @@ class OpticalAxisMainGUI(HasTraits):
         index = np.arange(numpoints)
         self.index_ds.set_data(index)
         self.value_ds.set_data(new)
-        self.plot_container.request_redraw()
+        
+    @on_trait_change('data_model.horizontal_pos')
+    def update_horizontal_pos_plot(self, name, old, new):
+        numpoints = new.size
+        self.horizontal_index_ds.set_data(np.arange(numpoints))
+        self.horizontal_pos_ds.set_data(new)
+        
+    @on_trait_change('data_model.power_data')
+    def update_power_data_plot(self,name, old, new):
+        numpoints = new.size
+        self.int_index_ds.set_data(np.arange(numpoints))
+        self.int_val_ds.set_data(new)      
 
-def create_plot(value_ds, index_ds):
+def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_val_ds, int_index_ds):
     xmapper = LinearMapper(range=DataRange1D(index_ds))
     value_mapper = LinearMapper(range=DataRange1D(value_ds))
     
-    value_plot = BarPlot(index = index_ds, value = value_ds,
+    xmapper_val = LinearMapper(range=DataRange1D(horizontal_index_ds))
+    horizontal_val_mapper =  LinearMapper(range=DataRange1D(horizontal_val_ds))
+    
+    int_xmapper = LinearMapper(range=DataRange1D(int_index_ds))
+    int_val_mapper = LinearMapper(range=DataRange1D(int_val_ds))
+    
+    value_plot = FilledLinePlot(index = index_ds, value = value_ds,
                                 index_mapper = xmapper,
                                 value_mapper = value_mapper,
                                 line_color = "black",
-                                bar_width = 0.6,
+                                render_style='connectedhold',
                                 fill_color = (0,0,1,0.3),
-                                bar_width_type='data',
                                 antialias=False)
     add_default_grids(value_plot)
-    #add_default_axes(value_plot)
     value_plot.overlays.append(PlotAxis(value_plot, orientation='left'))
-    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
+    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom', title='vertical beam intensity maximum position'))
     value_plot.padding = 50
-    return value_plot    
+    
+
+    horizontal_pos_plot = FilledLinePlot(index = horizontal_index_ds, value = horizontal_val_ds,
+                                index_mapper = xmapper_val,
+                                value_mapper = horizontal_val_mapper,
+                                line_color = "black",
+                                render_style='connectedhold',
+                                fill_color = (0,1,0,0.3),
+                                antialias=False)
+    
+    horizontal_pos_plot.padding = 50
+    add_default_grids(horizontal_pos_plot)
+    horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, orientation='left'))
+    horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, title='horizontal beam intensity maximum position', orientation='bottom'))
+    
+    intensity_plot = FilledLinePlot(index = int_index_ds, value = int_val_ds,
+                            index_mapper = int_xmapper,
+                            value_mapper = int_val_mapper,
+                            line_color = "black",
+                            fill_color = (0,0,0,0.4),
+                            antialias=False)
+    intensity_plot.padding = 50
+    add_default_grids(intensity_plot)
+    intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='left'))
+    intensity_plot.overlays.append(PlotAxis(intensity_plot, title='Intensity', orientation='bottom'))
+      
+    
+    container = VPlotContainer(use_backbuffer = True)
+    container.add(horizontal_pos_plot)
+    container.add(value_plot)
+    #container.add(intensity_plot)
+    container_h = HPlotContainer(use_backbuffer = True)
+    container_h.add(container)
+    container_h.add(intensity_plot)
+    return container_h 
 
 gui=OpticalAxisMainGUI()
 gui.configure_traits()

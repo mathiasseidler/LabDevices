@@ -78,14 +78,14 @@ def find_vertical_max(power_meter, stage, intensity_treshold = 1e-6):
     std = np.array([])
     counter = 0    
     
-    mean, stdev = take_averaged_measurement(power_meter)
+    mean, stdev, var = take_averaged_measurement(power_meter)
     a = np.append(a, mean)
     std= np.append(std,stdev)
     
     t = time.time()    
     while positive_slope and (time.time()-t) < 30:
         stage.up(1)
-        mean, stdev = take_averaged_measurement(power_meter)
+        mean, stdev, var = take_averaged_measurement(power_meter)
         a = np.append(a, mean)
         std = np.append(std,stdev)
         if a[-1]+std[-1] < a[-2] and a[-2] > intensity_treshold:
@@ -97,7 +97,7 @@ def find_vertical_max(power_meter, stage, intensity_treshold = 1e-6):
         t = time.time()    
         while positive_slope and (time.time()-t) < 30:
             stage.down(1)
-            mean, stdev = take_averaged_measurement(power_meter)
+            mean, stdev, var = take_averaged_measurement(power_meter)
             a = np.append(a, mean)
             std = np.append(std,stdev)
             if a[-1]+std[-1] < a[-2] and a[-2] > intensity_treshold:

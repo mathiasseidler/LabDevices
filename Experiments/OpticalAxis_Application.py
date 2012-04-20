@@ -53,7 +53,7 @@ class AcquireThread(Thread):
             h, mean, stdev = find_vertical_max(power_meter, stage, 1e-5)
             a = np.append(a, mean)
             std= np.append(std,stdev)
-            height = np.append(height, h)
+            self.model.height = np.append(self.model.height, h)
             stage.backwards(1)
     
     def threed_map_measurement(self):
@@ -65,7 +65,7 @@ class AcquireThread(Thread):
         stage.AG_UC2_1.move_to_limit(2, -speed)
         stage.AG_UC2_2.move_to_limit(1, -speed)
         
-        for i in range(0,20):
+        for i in range(0,50):
             a_slice = np.array([])
             for j in range(0,10):
                 row = np.array([])
@@ -146,10 +146,11 @@ class OpticalAxisMainGUI(HasTraits):
     
     @on_trait_change('data_model.height')        
     def update_plot(self,name,old,new):
-        self.value_ds.set_data(new)
-        numpoints = self.value_ds.get_size()
+        numpoints = new.size
         index = np.arange(numpoints)
-        self.index_ds.set_value(index)
+        self.index_ds.set_data(index)
+        self.value_ds.set_data(new)
+        self.plot_container.request_redraw()
 
 def create_plot(value_ds, index_ds):
     xmapper = LinearMapper(range=DataRange1D(index_ds))
@@ -159,13 +160,13 @@ def create_plot(value_ds, index_ds):
                                 index_mapper = xmapper,
                                 value_mapper = value_mapper,
                                 edge_color = "black",
-                                face_color = (0,0,1,0.4),
+                                face_color = 'transparent',#(0,0,1,0.4),
                                 bgcolor = "white",
                                 border_visible = True)
     add_default_grids(value_plot)
-    add_default_axes(value_plot)
-    #value_plot.overlays.append(PlotAxis(value_plot, orientation='left'))
-    #value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
+    #add_default_axes(value_plot)
+    value_plot.overlays.append(PlotAxis(value_plot, orientation='left',tick_interval=1))
+    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
     value_plot.padding = 50
     return value_plot    
 

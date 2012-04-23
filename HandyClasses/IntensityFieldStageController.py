@@ -19,17 +19,18 @@ def find_vertical_max_jog(power_meter, stage, intensity_treshold=1e-5):
     a = np.append(a, np.average(tmp))
     std= np.append(std,np.std(tmp))
     
-    t = time.time()    
+    t = time.time()
     while not negative_slope and (time.time()-t) < 20:
         tmp = np.array([])
         stage.AG_UC2_2.jog(1, 1)
         for i in range(0,10):
             tmp = np.append(tmp, power_meter.getPower())
         std = np.append(std,np.std(tmp))
-        a = np.append(a, np.average(tmp))
+        a = np.append(a, np.mean(tmp))
         if a[-1]+std[-1] < a[-2] and a[-1] > intensity_treshold:
             negative_slope = True
     stage.AG_UC2_2.stop_jog(1)
+    return a, std
     
 def find_horizontal_max_jog(power_meter, stage, intensity_treshold=1e-5):
     negative_slope = False
@@ -48,10 +49,11 @@ def find_horizontal_max_jog(power_meter, stage, intensity_treshold=1e-5):
         for i in range(0,10):
             tmp = np.append(tmp, power_meter.getPower())
         std = np.append(std,np.std(tmp))
-        a = np.append(a, np.average(tmp))
+        a = np.append(a, np.mean(tmp))
         if a[-1]+std[-1] < a[-2] and a[-2] > intensity_treshold:
             negative_slope = True
     stage.AG_UC2_1.stop_jog(1)
+    return a, std
     
 def move_along_maximum(power_meter, stage, intensity_treshold=1e-5):
     '''
@@ -73,7 +75,7 @@ def move_along_maximum(power_meter, stage, intensity_treshold=1e-5):
     return height, a, std
 
 
-def find_vertical_max(power_meter, stage, intensity_treshold = 1e-6):
+def find_vertical_max(power_meter, stage, intensity_treshold = 1e-6, timeout=30):
     positive_slope = True
     a = np.array([])
     std = np.array([])
@@ -84,7 +86,7 @@ def find_vertical_max(power_meter, stage, intensity_treshold = 1e-6):
     std= np.append(std,stdev)
     
     t = time.time()    
-    while positive_slope and (time.time()-t) < 15:
+    while positive_slope and (time.time()-t) < timeout:
         stage.up(1)
         counter += 1
         mean, stdev, var = take_averaged_measurement(power_meter)
@@ -98,7 +100,7 @@ def find_vertical_max(power_meter, stage, intensity_treshold = 1e-6):
     if counter == 0:
         positive_slope=True
         t = time.time()    
-        while positive_slope and (time.time()-t) < 15:
+        while positive_slope and (time.time()-t) < timeout:
             stage.down(1)
             counter -= 1
             mean, stdev, var = take_averaged_measurement(power_meter)
@@ -111,7 +113,7 @@ def find_vertical_max(power_meter, stage, intensity_treshold = 1e-6):
             
     return counter, a[-1], std[-1] # return height change, power, standard deviation
 
-def find_horizontal_max(power_meter, stage, intensity_treshold = 1e-6):
+def find_horizontal_max(power_meter, stage, intensity_treshold = 1e-6, timeout=30):
     positive_slope = True
     a = np.array([])
     std = np.array([])
@@ -122,7 +124,7 @@ def find_horizontal_max(power_meter, stage, intensity_treshold = 1e-6):
     std= np.append(std,stdev)
     
     t = time.time()    
-    while positive_slope and (time.time()-t) < 30:
+    while positive_slope and (time.time()-t) < timeout:
         stage.left(1)
         counter += 1
         mean, stdev, var = take_averaged_measurement(power_meter)
@@ -136,7 +138,7 @@ def find_horizontal_max(power_meter, stage, intensity_treshold = 1e-6):
     if counter == 0:
         positive_slope=True
         t = time.time()    
-        while positive_slope and (time.time()-t) < 30:
+        while positive_slope and (time.time()-t) < timeout:
             stage.right(1)
             counter -= 1
             mean, stdev, var = take_averaged_measurement(power_meter)

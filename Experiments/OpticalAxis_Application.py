@@ -27,10 +27,11 @@ import numpy as np
 
 
 class FieldData(HasTraits):
-    __slots__ = 'data', 'height', 'horizontal_pos'
+    __slots__ = 'data', 'height', 'horizontal_pos', 'power_data'
     power_data = Array
     height = Array
     horizontal_pos = Array
+    data = Array
     
 
         
@@ -46,6 +47,9 @@ class AcquireThread(Thread):
         power_meter  = Thorlabs_PM100D("PM100D")
         stage        = TranslationalStage_3Axes('COM3','COM4')
         stage.AG_UC2_2.move_to_limit(1,-2)
+        stage.AG_UC2_1.set_step_amplitude(1, 16)
+        stage.AG_UC2_1.set_step_amplitude(2, 50)
+        stage.AG_UC2_2.set_step_amplitude(1, 16)
         self.model.power_data = np.array([])
         std = np.array([])
         self.model.height =  np.array([])
@@ -63,9 +67,9 @@ class AcquireThread(Thread):
         self.model.horizontal_pos = np.append(self.model.horizontal_pos, relative_horizontal)
         
         # move along the maximum in the field
-        for i in xrange(0,200):
-            if self.wants_abort == True:
-                break
+        while self.wants_abort == False:
+            #if self.wants_abort == True:
+            #    break
             relative_height, mean, stdev = find_vertical_max(power_meter, stage, 1e-5)
             self.model.height = np.append(self.model.height, relative_height + self.model.height[0])
             
@@ -85,12 +89,15 @@ class AcquireThread(Thread):
         stage.AG_UC2_1.move_to_limit(1, -speed)
         stage.AG_UC2_1.move_to_limit(2, -speed)
         stage.AG_UC2_2.move_to_limit(1, -speed)
+        stage.AG_UC2_1.set_step_amplitude(3, 22)
+        stage.AG_UC2_1.set_step_amplitude(2, 50)
+        stage.AG_UC2_2.set_step_amplitude(1, 25)
         
-        for i in range(0,50):
+        for i in range(0,200):
             a_slice = np.array([])
-            for j in range(0,10):
+            for j in range(0,30):
                 row = np.array([])
-                for k in range(0,10):
+                for k in range(0,25):
                     if self.wants_abort:
                         return
                     row = np.append(power_meter.getPower(),row)
@@ -98,10 +105,9 @@ class AcquireThread(Thread):
                 a_slice = np.append(row, a_slice)         
                 stage.up(1)
                 stage.AG_UC2_1.move_to_limit(1,-speed)
-            a_slice = np.resize(a_slice, (10,10))
+            a_slice = np.resize(a_slice, (30,25))
             if i==0:
                 self.model.data = np.append(self.model.data, a_slice)
-                self.model.data = np.resize(a_slice,(10,10))
             else:
                 print self.model.data.shape
                 print a_slice.shape
@@ -149,17 +155,20 @@ class OpticalAxisMainGUI(HasTraits):
                 plot_item,
                 #mayavi_item,
                 Item('status_field', show_label=False, style='readonly'),
+                width=800,
                 resizable=True)
     
     def _thread_control_fired(self):
         if self.capture_thread and self.capture_thread.isAlive():
             self.capture_thread.wants_abort = True
+            self.button_label_tc = 'Start acquisition'
         else:
             self.capture_thread=AcquireThread()
             self.capture_thread.wants_abort = False
             self.capture_thread.model = self.data_model
             self.capture_thread.gui = self
             self.capture_thread.start()
+            self.button_label_tc = 'Stop acquisition'
             
     def _plot_container_default(self):
         index = np.arange(100)
@@ -211,7 +220,10 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
                                 antialias=False)
     add_default_grids(value_plot)
     value_plot.overlays.append(PlotAxis(value_plot, orientation='left'))
-    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom', title='vertical beam intensity maximum position'))
+    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
+    value_plot.overlays.append(PlotLabel('position of max power: vertical axes', component=value_plot, font = 'swiss 16', overlay_position='top'))
+
+    
     value_plot.padding = 50
     
 
@@ -226,7 +238,8 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
     horizontal_pos_plot.padding = 50
     add_default_grids(horizontal_pos_plot)
     horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, orientation='left'))
-    horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, title='horizontal beam intensity maximum position', orientation='bottom'))
+    horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, orientation='bottom'))
+    horizontal_pos_plot.overlays.append(PlotLabel('position of max power: horizontal axes', component=horizontal_pos_plot, font = 'swiss 16', overlay_position='top'))
     
     intensity_plot = FilledLinePlot(index = int_index_ds, value = int_val_ds,
                             index_mapper = int_xmapper,
@@ -237,8 +250,10 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
     intensity_plot.padding = 50
     add_default_grids(intensity_plot)
     intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='left'))
-    intensity_plot.overlays.append(PlotAxis(intensity_plot, title='Intensity', orientation='bottom'))
-      
+    intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='bottom'))
+    intensity_plot.x_axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6))
+    intensity_plot.overlays.append(PlotLabel('Power of transmitted beam', component=intensity_plot, font = 'swiss 16', overlay_position='top'))
+    
     
     container = VPlotContainer(use_backbuffer = True)
     container.add(horizontal_pos_plot)

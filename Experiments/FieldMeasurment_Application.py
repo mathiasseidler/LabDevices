@@ -4,7 +4,7 @@
 """
 
 from enthought.traits.api import HasTraits, Str, Instance, Array, Button, Any, Enum, Int, Event,Trait, Callable
-from enthought.traits.ui.api import View, VGroup, HGroup, Item, Controller, Group
+from enthought.traits.ui.api import View, VGroup, HGroup, Item, Controller, Group, Tabbed
 from enthought.enable.api import BaseTool
 from enthought.traits.api import on_trait_change
 from enthought.traits.ui.editors import ButtonEditor

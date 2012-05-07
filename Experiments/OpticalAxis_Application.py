@@ -4,7 +4,7 @@ Created on 13.04.2012
 @author: Mathias
 '''
 from enthought.traits.api import HasTraits, Event, Array, Str, Instance, Button, on_trait_change
-from enthought.traits.ui.api import View, Item, ButtonEditor, Action
+from enthought.traits.ui.api import View, Item, ButtonEditor, Action, Tabbed, Group
 from enthought.enable.api import Component, ComponentEditor
 from threading import Thread
 
@@ -138,7 +138,7 @@ class OpticalAxisMainGUI(HasTraits):
     
     # Maya
     mayavi = Instance(ScalarField3DPlot_GUI,())
-    mayavi_item = Item('mayavi', style='custom')
+    mayavi_item = Item('mayavi', show_label = False, style='custom')
     
     # acquire threads
     capture_thread=Instance(AcquireThread) 
@@ -150,13 +150,15 @@ class OpticalAxisMainGUI(HasTraits):
     
     # Status Fields
     status_field = Str("Welcome\n This is multiline\n\n")
+    item_status_field = Item('status_field', show_label=False, style='readonly')
     
-    view = View(button_tc, 
-                plot_item,
-                #mayavi_item,
-                Item('status_field', show_label=False, style='readonly'),
+    
+    #prepare GUI (Items, Groups, ...)
+    g1 = Group(button_tc, plot_item, item_status_field , label='Along Axis')
+    g2 = Group(mayavi_item, item_status_field, label='3D Plot')
+    view = View(Tabbed(g1,g2),
                 width=800,
-                resizable=True)
+                resizable=True,)
     
     def _thread_control_fired(self):
         if self.capture_thread and self.capture_thread.isAlive():

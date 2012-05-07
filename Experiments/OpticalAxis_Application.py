@@ -220,7 +220,7 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
                                 antialias=False)
     add_default_grids(value_plot)
     value_plot.overlays.append(PlotAxis(value_plot, orientation='left'))
-    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom'))
+    value_plot.overlays.append(PlotAxis(value_plot, orientation='bottom', title='steps backwards'))
     value_plot.overlays.append(PlotLabel('position of max power: vertical axes', component=value_plot, font = 'swiss 16', overlay_position='top'))
 
     
@@ -238,7 +238,7 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
     horizontal_pos_plot.padding = 50
     add_default_grids(horizontal_pos_plot)
     horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, orientation='left'))
-    horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, orientation='bottom'))
+    horizontal_pos_plot.overlays.append(PlotAxis(horizontal_pos_plot, orientation='bottom', title='steps backwards'))
     horizontal_pos_plot.overlays.append(PlotLabel('position of max power: horizontal axes', component=horizontal_pos_plot, font = 'swiss 16', overlay_position='top'))
     
     intensity_plot = FilledLinePlot(index = int_index_ds, value = int_val_ds,
@@ -249,9 +249,9 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
                             antialias=False)
     intensity_plot.padding = 50
     add_default_grids(intensity_plot)
-    intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='left'))
-    intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='bottom'))
-    intensity_plot.x_axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6))
+    intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='left', title= 'Power [uW]'))
+    intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='bottom', title='steps backwards'))
+    intensity_plot.y_axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6))
     intensity_plot.overlays.append(PlotLabel('Power of transmitted beam', component=intensity_plot, font = 'swiss 16', overlay_position='top'))
     
     

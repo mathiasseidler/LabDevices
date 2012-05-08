@@ -5,12 +5,12 @@ Created on 07.05.2012
 '''
 
 
-from enthought.traits.api import HasTraits, Event, Array, Str, Int, Instance, Button, on_trait_change
+from enthought.traits.api import HasTraits, Event, Array, Str, Int, Instance, Button, on_trait_change, File
 from enthought.traits.ui.api import View, Item, ButtonEditor, Action, Tabbed, Group, HGroup, VGroup
 from enthought.enable.api import Component, ComponentEditor
 from threading import Thread
 
-
+from enthought.traits.ui.menu import Action, CloseAction, Menu, MenuBar, OKCancelButtons, Separator
 from enthought.chaco.api import ArrayDataSource, BarPlot, DataRange1D, \
         LinearMapper, VPlotContainer, PlotAxis, FilledLinePlot, \
         add_default_grids, PlotLabel, add_default_axes, HPlotContainer
@@ -42,7 +42,6 @@ class StageConfiguration(HasTraits):
     
 class Data(HasTraits):
     field3d = Array    
-
 class DAQThread(Thread):
     def __init__(self,*args, **kw):
         super(DAQThread, self).__init__(*args, **kw)
@@ -54,7 +53,11 @@ class DAQThread(Thread):
         power_meter  = Thorlabs_PM100D("PM100D")
         stage        = TranslationalStage_3Axes('COM3','COM4')
         speed = 2
-
+        self.model.field3d = np.zeros((self.stage_config.steps_backwards,
+                                       self.stage_config.steps_up,
+                                       self.stage_config.steps_side))
+        print self.model.field3d
+        
         stage.AG_UC2_1.move_to_limit(1, -speed)
         stage.AG_UC2_1.move_to_limit(2, -speed)
         stage.AG_UC2_2.move_to_limit(1, -speed)
@@ -65,30 +68,18 @@ class DAQThread(Thread):
         stage.AG_UC2_1.set_step_amplitude(2, -self.stage_config.step_amplitude_backwards)
         stage.AG_UC2_2.set_step_amplitude(1, self.stage_config.step_amplitude_up)
         stage.AG_UC2_2.set_step_amplitude(1, -self.stage_config.step_amplitude_up)       
-        
         for i in range(0,self.stage_config.steps_backwards): # looping to acquire slices vertical slices
-            a_slice = np.array([])
             for j in range(0, self.stage_config.steps_up): # looping through the rows
-                row = np.array([])
                 for k in range(0, self.stage_config.steps_side):
                     if self.wants_abort:
                         return
-                    row = np.append(power_meter.getPower(),row)
-                    stage.left(self.stage_config.steps_per_move)    
-                a_slice = np.append(row, a_slice)         
+                    self.model.field3d[i,j,k] = power_meter.getPower()
+                    stage.left(self.stage_config.steps_per_move)          
                 stage.up(self.stage_config.steps_per_move)
                 stage.AG_UC2_1.move_to_limit(1,-speed)
-            a_slice = np.resize(a_slice, (30,25))
-            if i==0:
-                self.model.field3d = np.append(self.model.field3d, a_slice)
-            else:
-                print self.model.field3d.shape
-                print a_slice.shape
-                self.model.field3d = np.vstack((self.model.field3d, a_slice))    
             stage.backwards(self.stage_config.steps_per_move)
             stage.AG_UC2_2.move_to_limit(1, -speed)
-            stage.AG_UC2_1.move_to_limit(1, -speed)
-
+        
 
 class IntensityField3D_GUI(HasTraits):
     data = Instance(Data,())
@@ -98,18 +89,25 @@ class IntensityField3D_GUI(HasTraits):
     thread_control = Event
     label_button_thread = Str('Start acquisition')
     
+    _save_file = Str('default.npy')
+    
     # preparing the gui itself
     item_mayavi = Item('mayavi', show_label = False, style='custom')
     item_thread = Item('thread_control' , show_label=False, editor = ButtonEditor(label_value = 'label_button_thread'))  
     item_stage_config = Item('stage_config', show_label = False, style='custom')
-    
+
     size = (800,600)
-    view = View(item_stage_config, item_thread, item_mayavi, width=size[0], height=size[1], resizable=True) 
+    view = View(item_stage_config, item_thread, item_mayavi,
+                    menubar = MenuBar(Menu('_', Action(name="Save data", action="save_file"), 
+                         '_', 
+                         CloseAction,
+                         name="File")),
+                width=size[0], height=size[1], resizable=True)
     
+
     def _thread_control_fired(self):
-        self.data.field3d = np.array([[[]]])
-        self.mayavi.set_data(self.data)
         # if not self.running:
+        self.update_plot(np.empty((10,10,10)))
         if self.capture_thread and self.capture_thread.isAlive():
             self.capture_thread.wants_abort = True
             self.label_button_thread = 'Start acquisition'
@@ -118,9 +116,26 @@ class IntensityField3D_GUI(HasTraits):
             self.capture_thread.wants_abort = False
             self.capture_thread.model = self.data
             self.capture_thread.stage_config = self.stage_config
+            self.capture_thread.mayavi = self.mayavi
             self.capture_thread.start()
             self.label_button_thread = 'Stop acquisition'
+        
+
+    def update_plot(self,data):
+        print 'change oh yeaaahhhh'
+        self.mayavi.set_data(data)
+        
+    def save_file(self):
+        """
+        Callback for the 'Save Image' menu option.
+        """
+        from easygui import filesavebox
+        tmp = filesavebox(title = "Save to", default=self._save_file) 
+        if tmp:
+            print tmp
+            self._save_file = tmp
+            np.save(self._save_file, self.data.field3d)
     
 if __name__ == '__main__':
     gui=IntensityField3D_GUI()
-    gui.configure_traits()
+    gui.configure_traits(view='view')

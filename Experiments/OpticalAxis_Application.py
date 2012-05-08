@@ -108,6 +108,7 @@ class AcquireThread(Thread):
             a_slice = np.resize(a_slice, (30,25))
             if i==0:
                 self.model.data = np.append(self.model.data, a_slice)
+
             else:
                 print self.model.data.shape
                 print a_slice.shape

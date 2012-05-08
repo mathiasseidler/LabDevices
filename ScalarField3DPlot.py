@@ -3,17 +3,18 @@
 # License: BSD Style.
 
 # Standard imports.
-from numpy import sqrt, sin, mgrid, ogrid, random, mgrid, asarray
+from numpy import sqrt, sin, mgrid, ogrid, random, mgrid, asarray, load
 
 # Enthought imports.
-from traits.api import HasTraits, Instance, Property, Enum
+from traits.api import HasTraits, Instance, Property, Enum, Str
 from traitsui.api import View, Item, HSplit, VSplit, InstanceEditor
 from tvtk.pyface.scene_editor import SceneEditor
 from mayavi.core.ui.engine_view import EngineView
 from mayavi.tools.mlab_scene_model import MlabSceneModel
 from mayavi import mlab
 from enthought.mayavi.sources.api import ArraySource 
-
+from enthought.traits.ui.menu import Action, CloseAction, Menu, \
+                                     MenuBar, NoButtons, Separator
 class ScalarField3DPlot_GUI(HasTraits):
 
     # The scene model.
@@ -22,6 +23,8 @@ class ScalarField3DPlot_GUI(HasTraits):
     engine_view = Instance(EngineView)
     
     src = Instance(ArraySource)
+    
+    file_name = Str('default.npy')
     ######################
     view = View(HSplit(Item(name='engine_view',
                                    style='custom',
@@ -36,6 +39,11 @@ class ScalarField3DPlot_GUI(HasTraits):
                                     height=400
                                     )
                         ),
+                        menubar=MenuBar(Menu(Separator(),
+                                             Action(name="Load Numpy-data", action="load_file"), # action= ... calls the function, given in the string
+                                             Separator(),
+                                             CloseAction,
+                                             name="File")),
                 resizable=True,
                 scrollable=True
                 )
@@ -51,7 +59,20 @@ class ScalarField3DPlot_GUI(HasTraits):
         #                                  'current_selection')
 
         self.generate_data_mayavi()
-
+        
+    def load_file(self):
+        """
+        Callback for the 'Load Image' menu option.
+        """
+        import easygui
+        tmp = easygui.fileopenbox(title = "Choose your file",default="*.npy")
+        if tmp:
+            try:
+                self.file_name = tmp
+                self.set_data(load(self.file_name))
+            except:
+                print 'Loading file failed'
+    
     def generate_data_mayavi(self):
         """Shows how you can generate data using mayavi instead of mlab."""
         #from mayavi.sources.api import ParametricSurface
@@ -74,11 +95,11 @@ class ScalarField3DPlot_GUI(HasTraits):
         e.add_module(v)
         cp = ScalarCutPlane()
         e.add_module(cp)
-        cp.implicit_plane.normal = 0,0,1
+        #cp.implicit_plane.normal = 0,0,1
         #self.src.scalar_data  = random.random((20,20,20))
     
     def set_data(self, data):
-        self.src.scalar_data = data.field3d
+        self.src.scalar_data = data
         
     def _selection_change(self, old, new):
         self.trait_property_changed('current_selection', old, new)

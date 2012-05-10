@@ -3,7 +3,7 @@
 
 """
 
-from enthought.traits.api import HasTraits, Str, Instance, Array, Button, Any, Enum, Int, Event,Trait, Callable
+from enthought.traits.api import HasTraits, Str, Instance, Array, Button, Any, Enum, Int, Event,Trait, Callable, NO_COMPARE
 from enthought.traits.ui.api import View, VGroup, HGroup, Item, Controller, Group, Tabbed
 from enthought.enable.api import BaseTool
 from enthought.traits.api import on_trait_change
@@ -40,42 +40,20 @@ from enthought.traits.api import File
 from enthought.traits.ui.key_bindings import KeyBinding, KeyBindings
 from pylab import unravel_index
 
-def append_left_oriented(matrix, row):
-    diff = matrix.shape[1] - row.size
-    if diff < 0:
-        diff = -diff
-        filling = zeros((matrix.shape[0],diff))
-        matrix=hstack((matrix,filling))
-    elif diff > 0:
-        filling = zeros(diff)
-        row = hstack((row,filling))
-    matrix=vstack((matrix,row))
-    return matrix
-
-def append_right_oriented(matrix, row):
-    diff = matrix.shape[1] - row.size
-    if diff < 0:
-        diff = -diff
-        filling = zeros((matrix.shape[0],diff))
-        matrix=hstack((filling,matrix))
-    elif diff > 0:
-        filling = zeros(diff)
-        row = hstack((filling,row))
-    matrix=vstack((matrix,row))
-    return matrix
 
 
 class FieldData(HasTraits):
     """ Data and Index of the field
     """  
-    __slots__ = 'intensity_map','intens_vert'
-    intensity_map = Array
-    intens_vert = Array
+    __slots__ = 'intens_xy','intens_yz', 'intens_xz'
+    intens_yz = Array(comparison_mode=NO_COMPARE)
+    intens_xy = Array(comparison_mode=NO_COMPARE)
+    intens_xz = Array(comparison_mode=NO_COMPARE)
     
 class CaptureThread(Thread):
 
     def run(self):
-        self.measure3()
+        self.measure4()
     def measure4(self): 
         try:
             power_meter  = Thorlabs_PM100D("PM100D")
@@ -84,7 +62,7 @@ class CaptureThread(Thread):
             print "Exception raised: Devices not available"
             return
         to_limit_speed = 2
-        self.fd.intensity_map=array([[]])
+        self.fd.intens_xy=array([[]])
         stage.AG_UC2_1.set_step_amplitude(1, self.step_amplitude_side)
         stage.AG_UC2_1.set_step_amplitude(1, -self.step_amplitude_side)
         stage.AG_UC2_1.set_step_amplitude(2, self.step_amplitude_backwards)
@@ -95,41 +73,34 @@ class CaptureThread(Thread):
         stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
         stage.AG_UC2_1.print_step_amplitudes()
         stage.AG_UC2_2.print_step_amplitudes()
-
+        
+        # acquire plane in yz-plane
+        self.fd.intens_yz = zeros((self.steps_backwards, self.steps_side))
         for i in range(0,self.steps_backwards):
-            row=array([])
             for j in range(0,self.steps_side):
                 if self.wants_abort:
                     return
-                row = append(power_meter.getPower(),row)
-                stage.left(self.steps_per_move)
-            if i==0:
-                self.fd.intensity_map = append(self.fd.intensity_map, row)
-            else:
-                self.fd.intensity_map = vstack((self.fd.intensity_map, row))    
+                self.fd.intens_yz[i,j] = power_meter.getPower()
+                stage.left(self.steps_per_move)  
             stage.backwards(self.steps_per_move)
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
-            
+            self.fd.intens_yz = self.fd.intens_yz # this is to update the array for a traits callback
         #acquire vertical plane   
         stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
-        max_index=unravel_index(self.fd.intensity_map.argmax(), self.fd.intensity_map.shape)
-        stage.backwards(max_index[0])
-        stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) # check for direction
-        self.fd.intens_vert = array([[]])
+        max_index=unravel_index(self.fd.intens_yz.argmax(), self.fd.intens_yz.shape) # find index of the max intensity
+        stage.left(max_index[1])
+        stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) 
         
-        for i in range(0,self.steps_up):
-            row=array([])
-            for j in range(0,self.steps_side):
+        self.fd.intens_xz = zeros((self.steps_backwards, self.steps_up))
+        for i in range(0,self.steps_backwards):
+            for j in range(0,self.steps_up):
                 if self.wants_abort:
                     return
-                row = append(power_meter.getPower(),row)
-                stage.left(self.steps_per_move)
-            if i==0:
-                self.fd.intens_vert = append(self.fd.intens_vert, row)
-            else:
-                self.fd.intens_vert = vstack((self.fd.intens_vert, row))    
-            stage.up(self.steps_per_move)
-            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+                self.fd.intens_xz[i,j] = power_meter.getPower()
+                stage.up(self.steps_per_move)
+            stage.backwards(self.steps_per_move)
+            stage.AG_UC2_2.move_to_limit(1, -to_limit_speed)
+            self.fd.intens_xz = self.fd.intens_xz
                   
     def measure3(self):
         try:
@@ -139,7 +110,7 @@ class CaptureThread(Thread):
             print "Exception raised: Devices not available"
             return
         to_limit_speed = 2
-        self.fd.intensity_map=array([[]])
+        self.fd.intens_xy=array([[]])
         stage.AG_UC2_1.set_step_amplitude(1, self.step_amplitude_side)
         stage.AG_UC2_1.set_step_amplitude(1, -self.step_amplitude_side)
         stage.AG_UC2_1.set_step_amplitude(2, self.step_amplitude_backwards)
@@ -159,18 +130,18 @@ class CaptureThread(Thread):
                 row = append(power_meter.getPower(),row)
                 stage.left(self.steps_per_move)
             if i==0:
-                self.fd.intensity_map = append(self.fd.intensity_map, row)
+                self.fd.intens_xy = append(self.fd.intens_xy, row)
             else:
-                self.fd.intensity_map = vstack((self.fd.intensity_map, row))    
+                self.fd.intens_xy = vstack((self.fd.intens_xy, row))    
             stage.backwards(self.steps_per_move)
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
             
         #acquire vertical plane   
         stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
-        max_index=unravel_index(self.fd.intensity_map.argmax(), self.fd.intensity_map.shape)
+        max_index=unravel_index(self.fd.intens_xy.argmax(), self.fd.intens_xy.shape)
         stage.backwards(max_index[0])
         stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) # check for direction
-        self.fd.intens_vert = array([[]])
+        self.fd.intens_xy = array([[]])
         
         for i in range(0,self.steps_up):
             row=array([])
@@ -180,9 +151,9 @@ class CaptureThread(Thread):
                 row = append(power_meter.getPower(),row)
                 stage.left(self.steps_per_move)
             if i==0:
-               self.fd.intens_vert = append(self.fd.intens_vert, row)
+               self.fd.intens_xy = append(self.fd.intens_xy, row)
             else:
-                self.fd.intens_vert = vstack((self.fd.intens_vert, row))    
+                self.fd.intens_xy = vstack((self.fd.intens_xy, row))    
             stage.up(self.steps_per_move)
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
         
@@ -197,11 +168,12 @@ class CustomTool(BaseTool):
 class FieldDataController(HasTraits):
     
     model=Instance(FieldData)
-    
     plot_container=Instance(Component)
     plot_data=Instance(ArrayPlotData)
     _image_value = Instance(ImageData)
     renderer = Any()
+    
+    update = Event
     
     steps_backwards = Int(100)
     steps_side = Int(20)
@@ -210,7 +182,7 @@ class FieldDataController(HasTraits):
     step_amplitude_side = Int(16)
     step_amplitude_up=Int(25)
     step_amplitude_backwards=Int(50)
-    
+
     thread_control = Event
     capture_thread=Instance(CaptureThread) 
     label_button_measurment = Str('Start acquisition')
@@ -245,36 +217,65 @@ class FieldDataController(HasTraits):
         super(FieldDataController, self).__init__(*args, **kw)
         #self.plotdata = ArrayPlotData(x = self.model.index, y = self.model.data)
 
-        self.model.intensity_map = array([[]])
-        self.model.intens_vert = array([[]])
+        self.model.intens_xy = array([[]])
+        self.model.intens_xz = array([[]])
+        self.model.intens_yz = array([[]])
         # Create a plot data obect and give it this data
         self.create_plot_component()
         
     def create_plot_component(self):
         self.plot_data = ArrayPlotData()
-        self.plot_data.set_data("imagedata", self.model.intensity_map)
-        self.plot_data.set_data('vert_image',self.model.intens_vert)
+        self.plot_data.set_data("imagedata", self.model.intens_xy)
+        self.plot_data.set_data('vert_image',self.model.intens_yz)
         # Create a contour polygon plot of the data
-        self.plot = Plot(self.plot_data)
-        self.plot.title = 'Horizontal plane'
-        self.plot.padding=5
-        self.plot.padding_top = 22
-        self.plot.padding_left=25
-        self.plot.padding_bottom=20
-        self.plot.img_plot("imagedata", name='my_plot', # xbounds=x,#ybounds=y,
-                             colormap=jet, hide_grids=True)
+        plot = Plot(self.plot_data)
+        plot.title = 'Horizontal plane'
+        plot.padding=5
+        plot.padding_top = 22
+        plot.padding_left=25
+        plot.padding_bottom=20
+        my_plot = plot.img_plot("imagedata", name='my_plot', # xbounds=x,#ybounds=y,
+                             colormap=jet, hide_grids=True)[0]
+        
+        colormap = my_plot.color_mapper
+        colorbar = ColorBar(index_mapper=LinearMapper(range=colormap.range),
+                        color_mapper=colormap,
+                        plot=my_plot,
+                        orientation='v',
+                        resizable='v',
+                        width=25,
+                        padding=0)      
+        colorbar.padding_top = plot.padding_top
+        colorbar.padding_bottom = plot.padding_bottom
+        colorbar.padding_left = 30
+        colorbar.padding_right = 35                                         
                              
-        self.rplot = Plot(self.plot_data)
-        self.rplot.title = 'Vertical plane'
-        self.rplot.padding=self.plot.padding
-        self.rplot.padding_top = self.plot.padding_top
-        self.rplot.padding_left=self.plot.padding_left
-        self.rplot.padding_bottom=self.plot.padding_bottom   
-        self.rplot.img_plot('vert_image',name='vert_plot',colormap=jet)
+                             
+        rplot = Plot(self.plot_data)
+        rplot.title = 'Vertical plane'
+        rplot.padding=plot.padding
+        rplot.padding_top = plot.padding_top
+        rplot.padding_left = plot.padding_left
+        rplot.padding_bottom = plot.padding_bottom   
+        my_plot = rplot.img_plot('vert_image',name='vert_plot',colormap=jet)[0]
+        colormap = my_plot.color_mapper
+        colorbar_rplot = ColorBar(index_mapper=LinearMapper(range=colormap.range),
+                        color_mapper=colormap,
+                        plot=my_plot,
+                        orientation='v',
+                        resizable='v',
+                        width=25,
+                        padding=0)      
+        colorbar_rplot.padding_top = plot.padding_top
+        colorbar_rplot.padding_bottom = plot.padding_bottom
+        colorbar_rplot.padding_right = 20
+        colorbar_rplot.padding_left = 30    
           
         container = HPlotContainer(use_backbuffer = True)
-        container.add(self.plot)
-        container.add(self.rplot)
+        container.add(plot)
+        container.add(colorbar)
+        container.add(rplot)
+        container.add(colorbar_rplot)
         self.plot_container = container
             
     def _thread_control_fired(self):
@@ -296,19 +297,20 @@ class FieldDataController(HasTraits):
             self.capture_thread.steps_per_move = self.steps_per_move
             self.capture_thread.start()
             self.label_button_measurment = 'Stop acquisition'
-            #import time
-            #time.sleep(0.1)
             
     def _step_amplitude_changed(self):
         if self.capture_thread:
             self.capture_thread.stepamplitude = self.step_amplitude
+    
+    def _update_fired(self):
+        self.create_plot_component()
             
-    @on_trait_change('model.intensity_map')        
+    @on_trait_change('model.intens_xy')        
     def update_plot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
             self.create_plot_component()
             
-    @on_trait_change('model.intens_vert')        
+    @on_trait_change('model.intens_xz')        
     def update_rplot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
             self.create_plot_component()
@@ -319,8 +321,8 @@ class FieldDataController(HasTraits):
         """
         ui = self.edit_traits(view='save_file_view')
         if ui.result == True:
-            save(self._save_file, self.model.intensity_map)
-            save(self._save_file + '_vertical',self.model.intens_vert)
+            save(self._save_file, self.model.intens_xy)
+            save(self._save_file + '_vertical',self.model.intens_xy)
             
     def load_file(self):
         """
@@ -332,11 +334,11 @@ class FieldDataController(HasTraits):
         if tmp:
             self._load_file=tmp
             try:
-                self.model.intensity_map = load(self._load_file)
+                self.model.intens_xy = load(self._load_file)
             except:
                 print 'Loading the file failed'
             
         
     
-ui = FieldDataController(model=FieldData(intensity_map=array([[0][0]])))
+ui = FieldDataController(model=FieldData(intens_xy=array([[0][0]])))
 ui.configure_traits(view='view')

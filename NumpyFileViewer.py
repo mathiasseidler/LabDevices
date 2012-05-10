@@ -43,8 +43,6 @@ def _create_plot_component(file_name):
     
     img_plot = plot.img_plot("imagedata",
                              name='my_plot', 
-                            # xbounds=x,
-                             #ybounds=y,
                              colormap=jet,
                              hide_grids=True)[0]
     cont_plot=plot.contour_plot('imagedata', type='line', name='countour')

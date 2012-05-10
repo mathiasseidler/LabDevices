@@ -7,6 +7,28 @@ import numpy as np
 import time
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
+from enthought.traits.api import HasTraits, Str, Instance, Array, Button, Any, Enum, Int, Event,Trait, Callable, NO_COMPARE
+from enthought.traits.ui.api import View, VGroup, HGroup
+
+class StageConfiguration(HasTraits):
+    bw_steps = Int(100)
+    bw_step_amplitude = Int(20)
+    bw_steps_per_move = Int(5)
+    up_steps = Int(100)
+    up_step_amplitude = Int(20)
+    up_steps_per_move = Int(5)
+    side_steps = Int(100)
+    side_step_amplitude = Int(20)
+    side_steps_per_move = Int(5)
+
+    
+    backward = VGroup('bw_steps', 'bw_step_amplitude', 'bw_steps_per_move', label='Backwards')
+    up = VGroup('up_steps', 'up_step_amplitude', 'up_steps_per_move', label='Upwards')
+    side = VGroup('side_steps', 'side_step_amplitude', 'side_steps_per_move',label='Sidewards')
+    
+    group_config = HGroup(backward,'_', up,'_' , side)
+    view = View(group_config, resizable = True)
+
 
 def find_vertical_max_jog(power_meter, stage, intensity_treshold=1e-5):
     negative_slope = False

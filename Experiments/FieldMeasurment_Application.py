@@ -39,6 +39,7 @@ from enthought.chaco.tools.api import LineInspector, PanTool, RangeSelection, \
 from enthought.traits.api import File
 from enthought.traits.ui.key_bindings import KeyBinding, KeyBindings
 from pylab import unravel_index
+from HandyClasses.IntensityFieldStageController import StageConfiguration
 
 
 
@@ -62,100 +63,45 @@ class CaptureThread(Thread):
             print "Exception raised: Devices not available"
             return
         to_limit_speed = 2
-        self.fd.intens_xy=array([[]])
-        stage.AG_UC2_1.set_step_amplitude(1, self.step_amplitude_side)
-        stage.AG_UC2_1.set_step_amplitude(1, -self.step_amplitude_side)
-        stage.AG_UC2_1.set_step_amplitude(2, self.step_amplitude_backwards)
-        stage.AG_UC2_1.set_step_amplitude(2, -self.step_amplitude_backwards)
-        stage.AG_UC2_2.set_step_amplitude(1, self.step_amplitude_up)
-        stage.AG_UC2_2.set_step_amplitude(1, -self.step_amplitude_up)        
+        stage.AG_UC2_1.set_step_amplitude(1, self.sc.side_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(1, -self.sc.side_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(2, self.sc.bw_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(2, -self.sc.bw_step_amplitude)
+        stage.AG_UC2_2.set_step_amplitude(1, self.sc.up_step_amplitude)
+        stage.AG_UC2_2.set_step_amplitude(1, -self.sc.up_step_amplitude)        
         stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
         stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
         stage.AG_UC2_1.print_step_amplitudes()
         stage.AG_UC2_2.print_step_amplitudes()
         
         # acquire plane in yz-plane
-        self.fd.intens_yz = zeros((self.steps_backwards, self.steps_side))
-        for i in range(0,self.steps_backwards):
-            for j in range(0,self.steps_side):
+        self.fd.intens_yz = zeros((self.sc.bw_steps, self.sc.side_steps))
+        for i in range(0,self.sc.bw_steps):
+            for j in range(0,self.sc.side_steps):
                 if self.wants_abort:
                     return
                 self.fd.intens_yz[i,j] = power_meter.getPower()
-                stage.left(self.steps_per_move)  
-            stage.backwards(self.steps_per_move)
+                stage.left(self.sc.bw_steps_per_move)  
+            stage.backwards(self.sc.bw_steps_per_move)
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
             self.fd.intens_yz = self.fd.intens_yz # this is to update the array for a traits callback
         #acquire vertical plane   
         stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
         max_index=unravel_index(self.fd.intens_yz.argmax(), self.fd.intens_yz.shape) # find index of the max intensity
         stage.left(max_index[1])
+        print max_index
         stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) 
         
-        self.fd.intens_xz = zeros((self.steps_backwards, self.steps_up))
-        for i in range(0,self.steps_backwards):
-            for j in range(0,self.steps_up):
+        self.fd.intens_xz = zeros((self.sc.bw_steps, self.sc.up_steps))
+        for i in range(0,self.sc.bw_steps):
+            for j in range(0,self.sc.up_steps):
                 if self.wants_abort:
                     return
                 self.fd.intens_xz[i,j] = power_meter.getPower()
-                stage.up(self.steps_per_move)
-            stage.backwards(self.steps_per_move)
+                stage.up(self.sc.up_steps_per_move)
+            stage.backwards(self.sc.bw_steps_per_move)
             stage.AG_UC2_2.move_to_limit(1, -to_limit_speed)
             self.fd.intens_xz = self.fd.intens_xz
-                  
-    def measure3(self):
-        try:
-            power_meter  = Thorlabs_PM100D("PM100D")
-            stage       = TranslationalStage_3Axes('COM3','COM4')   
-        except:
-            print "Exception raised: Devices not available"
-            return
-        to_limit_speed = 2
-        self.fd.intens_xy=array([[]])
-        stage.AG_UC2_1.set_step_amplitude(1, self.step_amplitude_side)
-        stage.AG_UC2_1.set_step_amplitude(1, -self.step_amplitude_side)
-        stage.AG_UC2_1.set_step_amplitude(2, self.step_amplitude_backwards)
-        stage.AG_UC2_1.set_step_amplitude(2, -self.step_amplitude_backwards)
-        stage.AG_UC2_2.set_step_amplitude(1, self.step_amplitude_up)
-        stage.AG_UC2_2.set_step_amplitude(1, -self.step_amplitude_up)        
-        stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
-        stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
-        stage.AG_UC2_1.print_step_amplitudes()
-        stage.AG_UC2_2.print_step_amplitudes()
-
-        for i in range(0,self.steps_backwards):
-            row=array([])
-            for j in range(0,self.steps_side):
-                if self.wants_abort:
-                    return
-                row = append(power_meter.getPower(),row)
-                stage.left(self.steps_per_move)
-            if i==0:
-                self.fd.intens_xy = append(self.fd.intens_xy, row)
-            else:
-                self.fd.intens_xy = vstack((self.fd.intens_xy, row))    
-            stage.backwards(self.steps_per_move)
-            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
-            
-        #acquire vertical plane   
-        stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
-        max_index=unravel_index(self.fd.intens_xy.argmax(), self.fd.intens_xy.shape)
-        stage.backwards(max_index[0])
-        stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) # check for direction
-        self.fd.intens_xy = array([[]])
-        
-        for i in range(0,self.steps_up):
-            row=array([])
-            for j in range(0,self.steps_side):
-                if self.wants_abort:
-                    return
-                row = append(power_meter.getPower(),row)
-                stage.left(self.steps_per_move)
-            if i==0:
-               self.fd.intens_xy = append(self.fd.intens_xy, row)
-            else:
-                self.fd.intens_xy = vstack((self.fd.intens_xy, row))    
-            stage.up(self.steps_per_move)
-            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
         
 class CustomTool(BaseTool): 
     #right click
@@ -175,13 +121,7 @@ class FieldDataController(HasTraits):
     
     update = Event
     
-    steps_backwards = Int(100)
-    steps_side = Int(20)
-    steps_up = Int(60)
-    steps_per_move = Int(5)
-    step_amplitude_side = Int(16)
-    step_amplitude_up=Int(25)
-    step_amplitude_backwards=Int(50)
+    sc = Instance(StageConfiguration,())
 
     thread_control = Event
     capture_thread=Instance(CaptureThread) 
@@ -190,9 +130,8 @@ class FieldDataController(HasTraits):
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])
     # Define the view associated with this controller:
-    view = View(HGroup(VGroup('steps_backwards','steps_side','steps_up','steps_per_move'),
-                       VGroup('step_amplitude_backwards','step_amplitude_side','step_amplitude_up'),
-                       VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')))),
+    view = View(HGroup(VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')))),
+                Item('sc',style='custom',show_label=False),
                 Item('plot_container',editor=ComponentEditor(),show_label=False),
                 menubar=MenuBar(Menu("_",Action(name="Load data", action="load_file"), # action= ... calls the function, given in the string
                                      Action(name="Save data", action="save_file"), 
@@ -288,13 +227,7 @@ class FieldDataController(HasTraits):
             self.capture_thread.wants_abort = False
             self.capture_thread.fd = self.model
             self.capture_thread.plotdata= self.plot_data
-            self.capture_thread.step_amplitude_side = self.step_amplitude_side
-            self.capture_thread.step_amplitude_up = self.step_amplitude_up
-            self.capture_thread.step_amplitude_backwards = self.step_amplitude_backwards
-            self.capture_thread.steps_side = self.steps_side
-            self.capture_thread.steps_up = self.steps_up
-            self.capture_thread.steps_backwards = self.steps_backwards
-            self.capture_thread.steps_per_move = self.steps_per_move
+            self.capture_thread.sc = self.sc
             self.capture_thread.start()
             self.label_button_measurment = 'Stop acquisition'
             

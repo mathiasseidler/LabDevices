@@ -22,8 +22,7 @@ from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
 from ScalarField3DPlot import ScalarField3DPlot_GUI
 from HandyClasses.IntensityFieldStageController import find_vertical_max, find_horizontal_max
-
-
+from enthought.traits.api import HasTraits, Str, Instance, Array, Button, Any, Enum, Int, Event,Trait, Callable, NO_COMPARE
 import time
 import numpy as np
 

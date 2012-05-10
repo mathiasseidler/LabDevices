@@ -130,7 +130,7 @@ class IntensityField3D_GUI(HasTraits):
         Callback for the 'Save Image' menu option.
         """
         from easygui import filesavebox
-        tmp = filesavebox(title = "Save to", default=self._save_file) 
+        tmp = filesavebox(title = "Save to", default='*.npy') 
         if tmp:
             print tmp
             self._save_file = tmp

@@ -225,8 +225,8 @@ class FieldDataController(HasTraits):
         
     def create_plot_component(self):
         self.plot_data = ArrayPlotData()
-        self.plot_data.set_data("imagedata", self.model.intens_xy)
-        self.plot_data.set_data('vert_image',self.model.intens_yz)
+        self.plot_data.set_data("imagedata", self.model.intens_yz)
+        self.plot_data.set_data('vert_image',self.model.intens_xz)
         # Create a contour polygon plot of the data
         plot = Plot(self.plot_data)
         plot.title = 'Horizontal plane'
@@ -305,7 +305,7 @@ class FieldDataController(HasTraits):
     def _update_fired(self):
         self.create_plot_component()
             
-    @on_trait_change('model.intens_xy')        
+    @on_trait_change('model.intens_yz')        
     def update_plot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
             self.create_plot_component()

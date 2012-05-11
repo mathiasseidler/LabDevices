@@ -45,7 +45,7 @@ def _create_plot_component(file_name):
                              name='my_plot', 
                              colormap=jet,
                              hide_grids=True)[0]
-    cont_plot=plot.contour_plot('imagedata', type='line', name='countour')
+    #cont_plot=plot.contour_plot('imagedata', type='line', name='countour')
     # Tweak some of the plot properties
     plot.title = file_name
     plot.padding = 40

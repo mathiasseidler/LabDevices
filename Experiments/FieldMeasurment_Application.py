@@ -81,14 +81,14 @@ class CaptureThread(Thread):
                 if self.wants_abort:
                     return
                 self.fd.intens_yz[i,j] = power_meter.getPower()
-                stage.left(self.sc.bw_steps_per_move)  
+                stage.left(self.sc.side_steps_per_move)  
             stage.backwards(self.sc.bw_steps_per_move)
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
             self.fd.intens_yz = self.fd.intens_yz # this is to update the array for a traits callback
         #acquire vertical plane   
         stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
         max_index=unravel_index(self.fd.intens_yz.argmax(), self.fd.intens_yz.shape) # find index of the max intensity
-        stage.left(max_index[1])
+        stage.left(max_index[1] * self.sc.side_steps_per_move)
         print max_index
         stage.AG_UC2_2.move_to_limit(1,-to_limit_speed) 
         
@@ -254,8 +254,8 @@ class FieldDataController(HasTraits):
         """
         ui = self.edit_traits(view='save_file_view')
         if ui.result == True:
-            save(self._save_file, self.model.intens_xy)
-            save(self._save_file + '_vertical',self.model.intens_xy)
+            save(self._save_file, self.model.intens_yz)
+            save(self._save_file + '_vertical',self.model.intens_xz)
             
     def load_file(self):
         """

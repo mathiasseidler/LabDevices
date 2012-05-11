@@ -11,22 +11,22 @@ from enthought.traits.api import HasTraits, Str, Instance, Array, Button, Any, E
 from enthought.traits.ui.api import View, VGroup, HGroup
 
 class StageConfiguration(HasTraits):
-    bw_steps = Int(100)
-    bw_step_amplitude = Int(20)
-    bw_steps_per_move = Int(5)
-    up_steps = Int(100)
-    up_step_amplitude = Int(20)
-    up_steps_per_move = Int(5)
+    bw_steps = Int(30)
+    bw_step_amplitude = Int(50)
+    bw_steps_per_move = Int(1)
+    up_steps = Int(30)
+    up_step_amplitude = Int(30)
+    up_steps_per_move = Int(1)
     side_steps = Int(100)
-    side_step_amplitude = Int(20)
-    side_steps_per_move = Int(5)
+    side_step_amplitude = Int(15)
+    side_steps_per_move = Int(1)
 
     
     backward = VGroup('bw_steps', 'bw_step_amplitude', 'bw_steps_per_move', label='Backwards')
     up = VGroup('up_steps', 'up_step_amplitude', 'up_steps_per_move', label='Upwards')
     side = VGroup('side_steps', 'side_step_amplitude', 'side_steps_per_move',label='Sidewards')
     
-    group_config = HGroup(backward,'_', up,'_' , side)
+    group_config = HGroup(side, '_', backward, '_' ,up)
     view = View(group_config, resizable = True)
 
 

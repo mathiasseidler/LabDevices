@@ -113,7 +113,7 @@ class CustomTool(BaseTool):
             
 class FieldDataController(HasTraits):
     
-    model=Instance(FieldData)
+    model=Instance(FieldData,())
     plot_container=Instance(Component)
     plot_data=Instance(ArrayPlotData)
     _image_value = Instance(ImageData)
@@ -273,5 +273,5 @@ class FieldDataController(HasTraits):
             
         
     
-ui = FieldDataController(model=FieldData(intens_xy=array([[0][0]])))
+ui = FieldDataController()
 ui.configure_traits(view='view')

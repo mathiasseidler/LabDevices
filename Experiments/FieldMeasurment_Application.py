@@ -23,6 +23,7 @@ from enthought.enable.api import Window
 from enthought.enable.api import ComponentEditor, Component
 
 from threading import Thread
+import thread
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
 from matplotlib import rc
@@ -39,7 +40,8 @@ from enthought.chaco.tools.api import LineInspector, PanTool, RangeSelection, \
 from enthought.traits.api import File
 from enthought.traits.ui.key_bindings import KeyBinding, KeyBindings
 from pylab import unravel_index
-from HandyClasses.IntensityFieldStageController import StageConfiguration
+from HandyClasses.IntensityFieldStageController import StageConfiguration, ThreadControl
+
 
 
 
@@ -52,7 +54,6 @@ class FieldData(HasTraits):
     intens_xz = Array(comparison_mode=NO_COMPARE)
     
 class CaptureThread(Thread):
-
     def run(self):
         self.measure4()
     def measure4(self): 
@@ -109,7 +110,43 @@ class CustomTool(BaseTool):
         '''
         on right click
         '''
-        print event            
+        print event          
+          
+class GetBeamSectionThread(Thread):
+    def run(self):
+        self.get_beam_section()
+        
+    def get_beam_section(self):
+        try:
+            power_meter  = Thorlabs_PM100D("PM100D")
+            stage       = TranslationalStage_3Axes('COM3','COM4')   
+        except:
+            print "Exception raised: Devices not available"
+            return
+        stage_config = self.stage_config
+        field_data = self.field_data
+        to_limit_speed = 2
+        stage.AG_UC2_1.set_step_amplitude(1, stage_config.side_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(1, -stage_config.side_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(2, stage_config.bw_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(2, -stage_config.bw_step_amplitude)
+        stage.AG_UC2_2.set_step_amplitude(1, stage_config.up_step_amplitude)
+        stage.AG_UC2_2.set_step_amplitude(1, -stage_config.up_step_amplitude)        
+        stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+        stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
+        stage.AG_UC2_1.print_step_amplitudes()
+        stage.AG_UC2_2.print_step_amplitudes()
+                
+        field_data.intens_xy = zeros((stage_config.bw_steps, stage_config.side_steps))
+        for i in range(0, stage_config.bw_steps):
+            for j in range(0, stage_config.side_steps):
+                if self.wants_abort:
+                    return
+                field_data.intens_xy[i,j] = power_meter.getPower()
+                stage.left(stage_config.bw_steps_per_move)  
+            stage.backwards(stage_config.bw_steps_per_move)
+            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+            field_data.intens_xy = field_data.intens_xy 
             
 class FieldDataController(HasTraits):
     
@@ -119,18 +156,23 @@ class FieldDataController(HasTraits):
     _image_value = Instance(ImageData)
     renderer = Any()
     
+    button_get_horizontal_plane = Button(label='Get horizontal plane')
+    button_get_vertical_plane = Button(label= 'Get vertical plane')
+    button_get_section = Button(label = 'Get beam section')
+    
     update = Event
     
     sc = Instance(StageConfiguration,())
-
     thread_control = Event
-    capture_thread=Instance(CaptureThread) 
+    capture_thread = Instance(CaptureThread)
+    get_beam_section_thread = Instance(GetBeamSectionThread)
     label_button_measurment = Str('Start acquisition')
     
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])
     # Define the view associated with this controller:
-    view = View(HGroup(VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')))),
+    view = View(HGroup(VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')),
+    'button_get_horizontal_plane'), VGroup('button_get_vertical_plane', 'button_get_section')),
                 Item('sc',style='custom',show_label=False),
                 Item('plot_container',editor=ComponentEditor(),show_label=False),
                 menubar=MenuBar(Menu("_",Action(name="Load data", action="load_file"), # action= ... calls the function, given in the string
@@ -164,8 +206,9 @@ class FieldDataController(HasTraits):
         
     def create_plot_component(self):
         self.plot_data = ArrayPlotData()
-        self.plot_data.set_data("imagedata", self.model.intens_xy)
-        self.plot_data.set_data('vert_image',self.model.intens_yz)
+        self.plot_data.set_data("imagedata", self.model.intens_yz)
+        self.plot_data.set_data('vert_image',self.model.intens_xz)
+        self.plot_data.set_data('beam_section', self.model.intens_xy)
         # Create a contour polygon plot of the data
         plot = Plot(self.plot_data)
         plot.title = 'Horizontal plane'
@@ -209,12 +252,34 @@ class FieldDataController(HasTraits):
         colorbar_rplot.padding_bottom = plot.padding_bottom
         colorbar_rplot.padding_right = 20
         colorbar_rplot.padding_left = 30    
-          
+
+        sec_plot = Plot(self.plot_data)
+        sec_plot.title = 'Beam section'
+        sec_plot.padding=plot.padding
+        sec_plot.padding_top = plot.padding_top
+        sec_plot.padding_left = plot.padding_left
+        sec_plot.padding_bottom = plot.padding_bottom   
+        my_plot = sec_plot.img_plot('beam_section',name='beam_section_plot',colormap=jet)[0]
+        colormap = my_plot.color_mapper
+        colorbar_sec_plot = ColorBar(index_mapper=LinearMapper(range=colormap.range),
+                        color_mapper=colormap,
+                        plot=my_plot,
+                        orientation='v',
+                        resizable='v',
+                        width=25,
+                        padding=0)      
+        colorbar_sec_plot.padding_top = plot.padding_top
+        colorbar_sec_plot.padding_bottom = plot.padding_bottom
+        colorbar_sec_plot.padding_right = 20
+        colorbar_sec_plot.padding_left = 30    
+
         container = HPlotContainer(use_backbuffer = True)
         container.add(plot)
         container.add(colorbar)
         container.add(rplot)
         container.add(colorbar_rplot)
+        container.add(sec_plot)
+        container.add(colorbar_sec_plot)
         self.plot_container = container
             
     def _thread_control_fired(self):
@@ -237,7 +302,28 @@ class FieldDataController(HasTraits):
     
     def _update_fired(self):
         self.create_plot_component()
-            
+        
+    def _button_get_section_fired(self):
+        print 'okay la'
+        return
+        if self.get_beam_section_thread and self.get_beam_section_thread.isAlive():
+            self.get_beam_section_thread.wants_abort = True
+            #self.label_button_measurment = 'Start acquisition'
+        else:
+            self.get_beam_section_thread = GetBeamSectionThread()
+            self.get_beam_section_thread.wants_abort = False
+            self.get_beam_section_thread.fd = self.model
+            self.get_beam_section_thread.plotdata= self.plot_data
+            self.get_beam_section_thread.sc = self.sc
+            self.get_beam_section_thread.start()
+            #self.label_button_measurment = 'Stop acquisition'    
+    
+    def _button_get_vertical_plane_fired(self):
+        print 'vertical plane'
+        
+    def _button_get_horizontal_plane_fired(self):
+        print 'horizontal plane'
+        
     @on_trait_change('model.intens_xy')        
     def update_plot(self,name,old,new):
         if self.plot_data and new.ndim > 1:

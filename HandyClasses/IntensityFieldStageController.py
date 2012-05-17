@@ -7,8 +7,12 @@ import numpy as np
 import time
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
-from enthought.traits.api import HasTraits, Str, Instance, Array, Button, Any, Enum, Int, Event,Trait, Callable, NO_COMPARE
+from enthought.traits.api import HasTraits, Str, Instance, Array, Bool, Button, Any, Enum, Int, Event,Trait, Callable, NO_COMPARE
 from enthought.traits.ui.api import View, VGroup, HGroup
+
+class ThreadControl(HasTraits):
+    wants_abort = Bool(False)
+
 
 class StageConfiguration(HasTraits):
     bw_steps = Int(100)

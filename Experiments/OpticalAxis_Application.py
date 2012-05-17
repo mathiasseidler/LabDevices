@@ -19,7 +19,7 @@ from enthought.chaco.api import ArrayDataSource, BarPlot, DataRange1D, \
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
 from ScalarField3DPlot import ScalarField3DPlot_GUI
-from HandyClasses.IntensityFieldStageController import find_vertical_max, find_horizontal_max
+from HandyClasses.IntensityFieldStageController import find_vertical_max, find_horizontal_max, find_max
 
 
 import time
@@ -38,11 +38,29 @@ class FieldData(HasTraits):
 class AcquireThread(Thread):
     def __init__(self,*args, **kw):
         super(AcquireThread, self).__init__(*args, **kw)
-        #self.power_meter  = Thorlabs_PM100D("PM100D")
-        #self.stage        = TranslationalStage_3Axes('COM3','COM4')   
+        # self.power_meter  = Thorlabs_PM100D("PM100D")
+        # self.stage        = TranslationalStage_3Axes('COM3','COM4')   
     def run(self):
-        self.along_maxium()
+        self.find_axes()
     
+    def find_axes(self):
+        power_meter  = Thorlabs_PM100D("PM100D")
+        stage        = TranslationalStage_3Axes('COM3','COM4')
+        stage.AG_UC2_1.set_step_amplitude(1, 20)
+        stage.AG_UC2_1.set_step_amplitude(2, 50)
+        stage.AG_UC2_2.set_step_amplitude(1, 20)
+
+        self.model.power_data = np.array([])
+        self.model.height =  np.array([])
+        self.model.horizontal_pos = np.array([])
+        while not self.wants_abort == True:
+            pow, height, hor_pos = find_max(power_meter, stage)
+            print pow, height, hor_pos
+            self.model.power_data = np.append(self.model.power_data, pow)
+            self.model.horizontal_pos = np.append(self.model.horizontal_pos, hor_pos)
+            self.model.height = np.append(self.model.height, height)
+            stage.backwards(2)
+        
     def along_maxium(self):
         power_meter  = Thorlabs_PM100D("PM100D")
         stage        = TranslationalStage_3Axes('COM3','COM4')
@@ -68,7 +86,7 @@ class AcquireThread(Thread):
         
         # move along the maximum in the field
         while self.wants_abort == False:
-            #if self.wants_abort == True:
+            # if self.wants_abort == True:
             #    break
             relative_height, mean, stdev = find_vertical_max(power_meter, stage, 1e-5)
             self.model.height = np.append(self.model.height, relative_height + self.model.height[0])
@@ -80,42 +98,6 @@ class AcquireThread(Thread):
             self.model.power_data = np.append(self.model.power_data, mean)
             std= np.append(std,stdev)         
             stage.backwards(1)
-    
-    def threed_map_measurement(self):
-        power_meter  = Thorlabs_PM100D("PM100D")
-        stage        = TranslationalStage_3Axes('COM3','COM4')
-        speed = 2
-        self.model.data = np.array([[[]]])
-        stage.AG_UC2_1.move_to_limit(1, -speed)
-        stage.AG_UC2_1.move_to_limit(2, -speed)
-        stage.AG_UC2_2.move_to_limit(1, -speed)
-        stage.AG_UC2_1.set_step_amplitude(3, 22)
-        stage.AG_UC2_1.set_step_amplitude(2, 50)
-        stage.AG_UC2_2.set_step_amplitude(1, 25)
-        
-        for i in range(0,200):
-            a_slice = np.array([])
-            for j in range(0,30):
-                row = np.array([])
-                for k in range(0,25):
-                    if self.wants_abort:
-                        return
-                    row = np.append(power_meter.getPower(),row)
-                    stage.left(1)    
-                a_slice = np.append(row, a_slice)         
-                stage.up(1)
-                stage.AG_UC2_1.move_to_limit(1,-speed)
-            a_slice = np.resize(a_slice, (30,25))
-            if i==0:
-                self.model.data = np.append(self.model.data, a_slice)
-
-            else:
-                print self.model.data.shape
-                print a_slice.shape
-                self.model.data = np.vstack((self.model.data, a_slice))    
-            stage.backwards(1)
-            stage.AG_UC2_2.move_to_limit(1, -speed)
-            stage.AG_UC2_1.move_to_limit(1, -speed)
          
 class OpticalAxisMainGUI(HasTraits):
     '''
@@ -138,8 +120,8 @@ class OpticalAxisMainGUI(HasTraits):
     int_index_ds = Instance(ArrayDataSource)
     
     # Maya
-    mayavi = Instance(ScalarField3DPlot_GUI,())
-    mayavi_item = Item('mayavi', show_label = False, style='custom')
+    #mayavi = Instance(ScalarField3DPlot_GUI,())
+    #mayavi_item = Item('mayavi', show_label = False, style='custom')
     
     # acquire threads
     capture_thread=Instance(AcquireThread) 
@@ -156,8 +138,8 @@ class OpticalAxisMainGUI(HasTraits):
     
     #prepare GUI (Items, Groups, ...)
     g1 = Group(button_tc, plot_item, item_status_field , label='Along Axis')
-    g2 = Group(mayavi_item, item_status_field, label='3D Plot')
-    view = View(Tabbed(g1,g2),
+    #g2 = Group(mayavi_item, item_status_field, label='3D Plot')
+    view = View(Tabbed(g1),
                 width=800,
                 resizable=True,)
     
@@ -254,7 +236,7 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
     add_default_grids(intensity_plot)
     intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='left', title= 'Power [uW]'))
     intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='bottom', title='steps backwards'))
-    intensity_plot.y_axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6))
+    intensity_plot.y_axis.tick_label_formatter = lambda x: ('%.1f'%(x*1e6))
     intensity_plot.overlays.append(PlotLabel('Power of transmitted beam', component=intensity_plot, font = 'swiss 16', overlay_position='top'))
     
     

@@ -47,7 +47,7 @@ class FieldData(HasTraits):
     """ Data and Index of the field
     """  
     __slots__ = 'intens_xy','intens_yz', 'intens_xz'
-    intens_yz = Array(comparison_mode=NO_COMPARE)
+    intens_yz = Array(comparison_mode=NO_COMPARE) # NO_Compare so that arr = arr triggers an event
     intens_xy = Array(comparison_mode=NO_COMPARE)
     intens_xz = Array(comparison_mode=NO_COMPARE)
     
@@ -69,22 +69,25 @@ class CaptureThread(Thread):
         stage.AG_UC2_1.set_step_amplitude(2, -self.sc.bw_step_amplitude)
         stage.AG_UC2_2.set_step_amplitude(1, self.sc.up_step_amplitude)
         stage.AG_UC2_2.set_step_amplitude(1, -self.sc.up_step_amplitude)        
-        stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
-        stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
+
         stage.AG_UC2_1.print_step_amplitudes()
         stage.AG_UC2_2.print_step_amplitudes()
         
         # acquire plane in yz-plane
-        self.fd.intens_yz = zeros((self.sc.bw_steps, self.sc.side_steps))
-        for i in range(0,self.sc.bw_steps):
-            for j in range(0,self.sc.side_steps):
-                if self.wants_abort:
-                    return
-                self.fd.intens_yz[i,j] = power_meter.getPower()
-                stage.left(self.sc.side_steps_per_move)  
-            stage.backwards(self.sc.bw_steps_per_move)
+        for ind in xrange(0,1):
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
-            self.fd.intens_yz = self.fd.intens_yz # this is to update the array for a traits callback
+            stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
+            self.fd.intens_yz = zeros((self.sc.bw_steps, self.sc.side_steps))
+            for i in range(0,self.sc.bw_steps):
+                for j in range(0,self.sc.side_steps):
+                    if self.wants_abort:
+                        return
+                    self.fd.intens_yz[i,j] = power_meter.getPower()
+                    stage.left(self.sc.side_steps_per_move)  
+                stage.backwards(self.sc.bw_steps_per_move)
+                stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+                self.fd.intens_yz = self.fd.intens_yz # this is to update the array for a traits callback
+            #save('../data/horizontal_plane_'+ str(ind) + '.npy', self.fd.intens_yz)
         #acquire vertical plane   
         stage.AG_UC2_1.move_to_limit(2,-to_limit_speed)
         max_index=unravel_index(self.fd.intens_yz.argmax(), self.fd.intens_yz.shape) # find index of the max intensity
@@ -187,8 +190,7 @@ class FieldDataController(HasTraits):
         colorbar.padding_top = plot.padding_top
         colorbar.padding_bottom = plot.padding_bottom
         colorbar.padding_left = 30
-        colorbar.padding_right = 35                                         
-                             
+        colorbar.padding_right = 35                                                                   
                              
         rplot = Plot(self.plot_data)
         rplot.title = 'Vertical plane'
@@ -263,7 +265,7 @@ class FieldDataController(HasTraits):
         """
         import easygui
         tmp = easygui.fileopenbox(title = "Choose your file",default="*.npy")
-        #ui = self.edit_traits(view='load_file_view')
+        # ui = self.edit_traits(view='load_file_view')
         if tmp:
             self._load_file=tmp
             try:

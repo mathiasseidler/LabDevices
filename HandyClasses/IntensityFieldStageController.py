@@ -63,8 +63,8 @@ def find_horizontal_max_jog(power_meter, stage, intensity_treshold=1e-5):
     for i in range(0,10):
         tmp = np.append(tmp, power_meter.getPower())
     a = np.append(a, np.average(tmp))
-    std= np.append(std,np.std(tmp))
-    t = time.time()    
+    std= np.append(std, np.std(tmp))
+    t = time.time()
     while not negative_slope and (time.time()-t) < 20:
         tmp = np.array([])
         stage.AG_UC2_1.jog(1, 1)
@@ -77,6 +77,47 @@ def find_horizontal_max_jog(power_meter, stage, intensity_treshold=1e-5):
     stage.AG_UC2_1.stop_jog(1)
     return a, std
     
+def find_max(power_meter, stage, intensity_treshold=1e-5):
+    power, height =go_to_vertical_max(power_meter, stage)
+    power, horizontal_pos = go_to_horizontal_max(power_meter, stage)
+    return power, height, horizontal_pos
+
+def go_to_vertical_max(power_meter, stage, intensity_treshold=1e-6):
+    stage.AG_UC2_2.move_to_limit(1,-2)
+    positive_slope = True
+    mean, stdev, var = take_averaged_measurement(power_meter)
+    pow = np.array([mean])
+    std = np.array([stdev])
+    while positive_slope:
+        stage.up(1)
+        mean, stdev, var = take_averaged_measurement(power_meter)
+        pow = np.append(pow, mean)
+        std = np.append(std,stdev)
+        if pow[-1] + std[-1] < pow[-2] and pow[-2] > intensity_treshold:
+            positive_slope = False
+            break
+    print 'vertical: ', pow
+    height = pow.argmax()
+    return pow[height], height
+
+def go_to_horizontal_max(power_meter, stage, intensity_treshold=1e-6):    
+    stage.AG_UC2_1.move_to_limit(1,-2)
+    positive_slope = True
+    mean, stdev, var = take_averaged_measurement(power_meter)
+    pow = np.array([mean])
+    std = np.array([stdev])
+    while positive_slope:
+        stage.left(1)
+        mean, stdev, var = take_averaged_measurement(power_meter)
+        pow = np.append(pow, mean)
+        std = np.append(std,stdev)
+        if pow[-1] + std[-1] < pow[-2] and pow[-2] > intensity_treshold:
+            positive_slope = False
+            break
+    print 'vertical: ', pow
+    pos = pow.argmax()
+    return pow[pos], pos  
+       
 def move_along_maximum(power_meter, stage, intensity_treshold=1e-5):
     '''
     Please position the fiber tip to Intensity maximum manually first.

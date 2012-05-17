@@ -324,7 +324,7 @@ class FieldDataController(HasTraits):
     def _button_get_horizontal_plane_fired(self):
         print 'horizontal plane'
         
-    @on_trait_change('model.intens_xy')        
+    @on_trait_change('model.intens_yz')        
     def update_plot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
             self.create_plot_component()
@@ -340,8 +340,8 @@ class FieldDataController(HasTraits):
         """
         ui = self.edit_traits(view='save_file_view')
         if ui.result == True:
-            save(self._save_file, self.model.intens_xy)
-            save(self._save_file + '_vertical',self.model.intens_xy)
+            save(self._save_file, self.model.intens_xz)
+            save(self._save_file + '_vertical',self.model.intens_yz)
             
     def load_file(self):
         """

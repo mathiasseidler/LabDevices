@@ -162,9 +162,10 @@ class NEWPORT_AG_UC2(object):
         
     def waitUntilMovementDone(self):
         try:
-            time.sleep(0.1)
+            wt=0.005
+            time.sleep(wt)
             status2=self.device.ask('2TS')
-            time.sleep(0.05)
+            time.sleep(wt)
             status1=self.device.ask('1TS')
             while (status2 != '\n2TS0' or status1 != '\n1TS0') and (status2 != '\nSTS0' or status1 != '\nTTS0'):
                 time.sleep(0.4)

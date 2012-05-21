@@ -23,7 +23,8 @@ from enthought.enable.api import Window
 from enthought.enable.api import ComponentEditor, Component
 
 from threading import Thread
-import thread
+import thread, os
+import datetime, time
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
 from matplotlib import rc
@@ -123,8 +124,8 @@ class GetBeamSectionThread(Thread):
         except:
             print "Exception raised: Devices not available"
             return
-        stage_config = self.stage_config
-        field_data = self.field_data
+        stage_config = self.sc
+        field_data = self.fd
         to_limit_speed = 2
         stage.AG_UC2_1.set_step_amplitude(1, stage_config.side_step_amplitude)
         stage.AG_UC2_1.set_step_amplitude(1, -stage_config.side_step_amplitude)
@@ -133,7 +134,7 @@ class GetBeamSectionThread(Thread):
         stage.AG_UC2_2.set_step_amplitude(1, stage_config.up_step_amplitude)
         stage.AG_UC2_2.set_step_amplitude(1, -stage_config.up_step_amplitude)        
         stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
-        stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
+        stage.AG_UC2_2.move_to_limit(1, -to_limit_speed)
         stage.AG_UC2_1.print_step_amplitudes()
         stage.AG_UC2_2.print_step_amplitudes()
                 
@@ -143,11 +144,51 @@ class GetBeamSectionThread(Thread):
                 if self.wants_abort:
                     return
                 field_data.intens_xy[i,j] = power_meter.getPower()
-                stage.left(stage_config.bw_steps_per_move)  
-            stage.backwards(stage_config.bw_steps_per_move)
+                stage.left(stage_config.side_steps_per_move)  
+            stage.up(stage_config.up_steps_per_move)
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
             field_data.intens_xy = field_data.intens_xy 
-            
+
+class GetHorizontalPlaneThread(Thread):
+    def run(self):
+        self.get_horizontal_plane()
+        
+    def get_horizontal_plane(self):
+        try:
+            power_meter  = Thorlabs_PM100D("PM100D")
+            stage       = TranslationalStage_3Axes('COM3','COM4')   
+        except:
+            print "Exception raised: Devices not available"
+            return
+        stage_config = self.sc
+        field_data = self.fd
+        to_limit_speed = 2
+        stage.AG_UC2_1.set_step_amplitude(1, stage_config.side_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(1, -stage_config.side_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(2, stage_config.bw_step_amplitude)
+        stage.AG_UC2_1.set_step_amplitude(2, -stage_config.bw_step_amplitude)
+        stage.AG_UC2_2.set_step_amplitude(1, stage_config.up_step_amplitude)
+        stage.AG_UC2_2.set_step_amplitude(1, -stage_config.up_step_amplitude)        
+        stage.AG_UC2_1.print_step_amplitudes()
+        stage.AG_UC2_2.print_step_amplitudes()
+        if not os.path.exists('../data/lensed_snom'):
+            os.makedirs('../data/lensed_snom')
+
+        for ind in range(0,50):
+            stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+            stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
+            field_data.intens_yz = zeros((stage_config.bw_steps, stage_config.side_steps))
+            for i in range(0, stage_config.bw_steps):
+                for j in range(0, stage_config.side_steps):
+                    if self.wants_abort:
+                        return
+                    field_data.intens_yz[i,j] = power_meter.getPower()
+                    stage.left(stage_config.side_steps_per_move)  
+                stage.backwards(stage_config.bw_steps_per_move)
+                stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
+                field_data.intens_yz = field_data.intens_yz
+            save('../data/lensed_snom/' + str(time.time()) + 'horizontal_plane', field_data.intens_yz) 
+                        
 class FieldDataController(HasTraits):
     
     model=Instance(FieldData,())
@@ -166,6 +207,7 @@ class FieldDataController(HasTraits):
     thread_control = Event
     capture_thread = Instance(CaptureThread)
     get_beam_section_thread = Instance(GetBeamSectionThread)
+    horizontal_plane_thread = Instance(GetHorizontalPlaneThread)
     label_button_measurment = Str('Start acquisition')
     
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
@@ -231,7 +273,7 @@ class FieldDataController(HasTraits):
         colorbar.padding_bottom = plot.padding_bottom
         colorbar.padding_left = 30
         colorbar.padding_right = 35                                         
-                             
+        colorbar._axis.tick_label_formatter = lambda x: ('%.0e'%x)                     
                              
         rplot = Plot(self.plot_data)
         rplot.title = 'Vertical plane'
@@ -252,7 +294,8 @@ class FieldDataController(HasTraits):
         colorbar_rplot.padding_bottom = plot.padding_bottom
         colorbar_rplot.padding_right = 20
         colorbar_rplot.padding_left = 30    
-
+        colorbar_rplot._axis.tick_label_formatter = lambda x: ('%.0e'%x) 
+           
         sec_plot = Plot(self.plot_data)
         sec_plot.title = 'Beam section'
         sec_plot.padding=plot.padding
@@ -272,7 +315,7 @@ class FieldDataController(HasTraits):
         colorbar_sec_plot.padding_bottom = plot.padding_bottom
         colorbar_sec_plot.padding_right = 20
         colorbar_sec_plot.padding_left = 30    
-
+        colorbar_sec_plot._axis.tick_label_formatter = lambda x: ('%.0e'%x)    
         container = HPlotContainer(use_backbuffer = True)
         container.add(plot)
         container.add(colorbar)
@@ -304,8 +347,6 @@ class FieldDataController(HasTraits):
         self.create_plot_component()
         
     def _button_get_section_fired(self):
-        print 'okay la'
-        return
         if self.get_beam_section_thread and self.get_beam_section_thread.isAlive():
             self.get_beam_section_thread.wants_abort = True
             #self.label_button_measurment = 'Start acquisition'
@@ -322,12 +363,22 @@ class FieldDataController(HasTraits):
         print 'vertical plane'
         
     def _button_get_horizontal_plane_fired(self):
-        print 'horizontal plane'
+        if self.horizontal_plane_thread and self.horizontal_plane_thread.isAlive():
+            self.horizontal_plane_thread.wants_abort = True
+            #self.label_button_measurment = 'Start acquisition'
+        else:
+            self.horizontal_plane_thread = GetHorizontalPlaneThread()
+            self.horizontal_plane_thread.wants_abort = False
+            self.horizontal_plane_thread.fd = self.model
+            self.horizontal_plane_thread.plotdata= self.plot_data
+            self.horizontal_plane_thread.sc = self.sc
+            self.horizontal_plane_thread.start()
         
     @on_trait_change('model.intens_yz')        
     def update_plot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
             self.create_plot_component()
+            #self.plot_data.set_data('imagedata', new)
             
     @on_trait_change('model.intens_xz')        
     def update_rplot(self,name,old,new):

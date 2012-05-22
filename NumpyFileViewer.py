@@ -71,7 +71,7 @@ def _create_plot_component(file_name):
                         padding=0)
     colorbar.origin = 'bottom left'
     #colorbar._axis.tick_label_formatter = lambda x: '%.0e'%(x*10e6) + u' [\u00b5' + 'Watt]'
-    colorbar._axis.tick_label_formatter = lambda x: ('%.0f'%(x*1e6))
+    colorbar._axis.tick_label_formatter = lambda x: ('%.0e'%(x*1e6))
     colorbar._axis.orientation = 'right'
     colorbar._axis.title = u'Intensity [\u00b5W]'
     colorbar.padding_top = plot.padding_top
@@ -126,14 +126,12 @@ class NumpyFileViewer(HasTraits):
                                              name="File")),
                     resizable=True, title=title
                     )
+    
     def _plot_default(self):
-        tmp = easygui.fileopenbox(title = "Choose your file",default="*.npy")
-        if tmp:
-            try:
-                self.file_name = tmp
-                return _create_plot_component(self.file_name)
-            except:
-                print 'Loading file failed'
+        try:
+            return _create_plot_component(self.file_name)
+        except:
+            print 'file not found'
         
         
         #=======================================================================

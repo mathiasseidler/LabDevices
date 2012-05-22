@@ -82,8 +82,8 @@ def find_horizontal_max_jog(power_meter, stage, intensity_treshold=1e-5):
     return a, std
     
 def find_max(power_meter, stage, intensity_treshold=1e-5):
-    power, height =go_to_vertical_max(power_meter, stage)
-    power, horizontal_pos = go_to_horizontal_max(power_meter, stage)
+    power, height =go_to_vertical_max(power_meter, stage, intensity_treshold = intensity_treshold)
+    power, horizontal_pos = go_to_horizontal_max(power_meter, stage,intensity_treshold = intensity_treshold)
     return power, height, horizontal_pos
 
 def go_to_vertical_max(power_meter, stage, intensity_treshold=1e-6):

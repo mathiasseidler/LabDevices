@@ -3,7 +3,7 @@ Created on 13.04.2012
 
 @author: Mathias
 '''
-from enthought.traits.api import HasTraits, Event, Array, Str, Instance, Button, on_trait_change
+from enthought.traits.api import HasTraits, Event, Array, Str, Instance, Button, on_trait_change, Int
 from enthought.traits.ui.api import View, Item, ButtonEditor, Action, Tabbed, Group
 from enthought.enable.api import Component, ComponentEditor
 from threading import Thread
@@ -54,7 +54,7 @@ class AcquireThread(Thread):
         self.model.height =  np.array([])
         self.model.horizontal_pos = np.array([])
         while not self.wants_abort == True:
-            pow, height, hor_pos = find_max(power_meter, stage)
+            pow, height, hor_pos = find_max(power_meter, stage, intensity_treshold = 5e-9)
             print pow, height, hor_pos
             self.model.power_data = np.append(self.model.power_data, pow)
             self.model.horizontal_pos = np.append(self.model.horizontal_pos, hor_pos)
@@ -106,6 +106,8 @@ class OpticalAxisMainGUI(HasTraits):
     # data
     data_model = Instance(FieldData,())
     
+    # settings for the intensity input
+    intensity_treshold = Int(1e-9)
     # plot container
     plot_container = Instance(Component)
     plot_size=(600,400)
@@ -137,7 +139,7 @@ class OpticalAxisMainGUI(HasTraits):
     
     
     #prepare GUI (Items, Groups, ...)
-    g1 = Group(button_tc, plot_item, item_status_field , label='Along Axis')
+    g1 = Group(button_tc, 'intensity_treshold', plot_item, item_status_field , label='Along Axis')
     #g2 = Group(mayavi_item, item_status_field, label='3D Plot')
     view = View(Tabbed(g1),
                 width=800,

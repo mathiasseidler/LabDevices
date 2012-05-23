@@ -42,8 +42,9 @@ from enthought.traits.api import File
 from enthought.traits.ui.key_bindings import KeyBinding, KeyBindings
 from pylab import unravel_index
 from HandyClasses.IntensityFieldStageController import StageConfiguration, ThreadControl
-
-
+from HandyClasses.GoodFunctions import listdir_nohidden
+from OpticalAxis_Application import OpticalAxisMainGUI
+from NumpyFileViewer import NumpyFileViewer
 
 
 class FieldData(HasTraits):
@@ -171,23 +172,30 @@ class GetHorizontalPlaneThread(Thread):
         stage.AG_UC2_2.set_step_amplitude(1, -stage_config.up_step_amplitude)        
         stage.AG_UC2_1.print_step_amplitudes()
         stage.AG_UC2_2.print_step_amplitudes()
-        if not os.path.exists('../data/lensed_snom'):
-            os.makedirs('../data/lensed_snom')
+        
+        date = time.strftime('%y-%m-%d')
+        time = time.strftime('%H:%M:%S')
+        folder = '../data/lensed_snom/' + date + '/' + time + '/'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
-        for ind in range(0,50):
+        while True:
             stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
             stage.AG_UC2_1.move_to_limit(2, -to_limit_speed)
             field_data.intens_yz = zeros((stage_config.bw_steps, stage_config.side_steps))
             for i in range(0, stage_config.bw_steps):
                 for j in range(0, stage_config.side_steps):
                     if self.wants_abort:
+                        if len(listdir_nohidden(folder)) == 0:
+                            import shutil
+                            shutil.rmtree(folder)
                         return
                     field_data.intens_yz[i,j] = power_meter.getPower()
                     stage.left(stage_config.side_steps_per_move)  
                 stage.backwards(stage_config.bw_steps_per_move)
                 stage.AG_UC2_1.move_to_limit(1, -to_limit_speed)
                 field_data.intens_yz = field_data.intens_yz
-            save('../data/lensed_snom/' + str(time.time()) + 'horizontal_plane', field_data.intens_yz) 
+            save(folder + str(time.time()) + '_horizontal_plane', field_data.intens_yz) 
                         
 class FieldDataController(HasTraits):
     
@@ -209,21 +217,29 @@ class FieldDataController(HasTraits):
     get_beam_section_thread = Instance(GetBeamSectionThread)
     horizontal_plane_thread = Instance(GetHorizontalPlaneThread)
     label_button_measurment = Str('Start acquisition')
-    
+    optical_axes_app = Instance(OpticalAxisMainGUI,())
+    item_oa_app = Item('optical_axes_app', style='custom', show_label=False)
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])
     # Define the view associated with this controller:
-    view = View(HGroup(VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')),
+    view = View(Tabbed(Group(HGroup(VGroup(Item('thread_control' , label='', editor = ButtonEditor(label_value = 'label_button_measurment')),
     'button_get_horizontal_plane'), VGroup('button_get_vertical_plane', 'button_get_section')),
                 Item('sc',style='custom',show_label=False),
-                Item('plot_container',editor=ComponentEditor(),show_label=False),
-                menubar=MenuBar(Menu("_",Action(name="Load data", action="load_file"), # action= ... calls the function, given in the string
-                                     Action(name="Save data", action="save_file"), 
+                Item('plot_container',editor=ComponentEditor(),show_label=False), label='field sections'),
+                Group(item_oa_app, label='optical axes')),
+                menubar=MenuBar(Menu("_",#Action(name="Load data", action="load_file"), # action= ... calls the function, given in the string
+                                    # Action(name="Save data", action="save_file"), 
+                                    '_',
+                                    Action(name='Save horizontal data', action='save_horizontal'),
+                                    Action(name='Save vertical data', action='save_vertical'),
+                                    Action(name='Save section data', action='save_section'),
+                                    Action(name='Numpy file viewer', action='open_file_viewer'),
                                     '_',
                                     CloseAction,
                                     name="File")),
                 resizable=True,
-                width=700)
+                width=1000,
+                height=700)
     
     save_file_view = View(Item('_save_file'), 
                           buttons=OKCancelButtons, 
@@ -397,7 +413,33 @@ class FieldDataController(HasTraits):
         if ui.result == True:
             save(self._save_file, self.model.intens_xz)
             save(self._save_file + '_vertical',self.model.intens_yz)
-            
+    def save_horizontal(self):
+        import easygui
+        tmp = easygui.filesavebox(title='Save fiel')
+        if tmp:
+            try:
+                save(tmp, self.model.intens_yz)
+            except:
+                print 'saving file failed'
+    def save_vertical(self):
+        import easygui
+        tmp = easygui.filesavebox(title='Save file')
+        if tmp:
+            try:
+                save(tmp, self.model.intens_xz)
+            except:
+                print 'saving file failed'
+    def save_section(self):
+        import easygui
+        tmp = easygui.filesavebox(title='Save file')
+        if tmp:
+            try:
+                save(tmp, self.model.intens_xy)
+            except:
+                print 'saving file failed'
+    def open_file_viewer(self):
+        demo = NumpyFileViewer()
+        demo.configure_traits(view='view')
     def load_file(self):
         """
         Callback for the 'Load Image' menu option.
@@ -413,6 +455,6 @@ class FieldDataController(HasTraits):
                 print 'Loading the file failed'
             
         
-    
-ui = FieldDataController()
-ui.configure_traits(view='view')
+if __name__ == '__main__':
+    ui = FieldDataController()
+    ui.configure_traits(view='view')

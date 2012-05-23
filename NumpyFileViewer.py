@@ -47,7 +47,7 @@ def _create_plot_component(file_name):
                              hide_grids=True)[0]
     #cont_plot=plot.contour_plot('imagedata', type='line', name='countour')
     # Tweak some of the plot properties
-    plot.title = file_name
+    #plot.title = file_name
     plot.padding = 40
     plot.padding_right=20
     # Attach some tools to the plot
@@ -115,7 +115,7 @@ class NumpyFileViewer(HasTraits):
     _save_file = File('default.npy', filter=['Numpy files (*.npy)| *.npy'])
     _load_file = File('.npy',  filter=['Numpy files (*.npy) | *.npy', 'All files (*.*) | *.*'])   
    
-    traits_view = View(
+    view = View(
                     Group(
                         Item('plot', editor=ComponentEditor(size=size), show_label=False),orientation = "vertical"),
                         menubar=MenuBar(Menu(Separator(),
@@ -169,4 +169,4 @@ class NumpyFileViewer(HasTraits):
         # Create a graphics context of the right size
 if __name__ == '__main__':
     demo = NumpyFileViewer()
-    demo.configure_traits(view='traits_view')
+    demo.configure_traits(view='view')

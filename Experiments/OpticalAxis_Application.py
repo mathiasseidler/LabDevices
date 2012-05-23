@@ -135,8 +135,7 @@ class OpticalAxisMainGUI(HasTraits):
     
     # Status Fields
     status_field = Str("Welcome\n This is multiline\n\n")
-    item_status_field = Item('status_field', show_label=False, style='readonly')
-    
+    item_status_field = Item('status_field', show_label=False, style='readonly') 
     
     #prepare GUI (Items, Groups, ...)
     g1 = Group(button_tc, 'intensity_treshold', plot_item, item_status_field , label='Along Axis')
@@ -238,8 +237,8 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
     add_default_grids(intensity_plot)
     intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='left', title= 'Power [uW]'))
     intensity_plot.overlays.append(PlotAxis(intensity_plot, orientation='bottom', title='steps backwards'))
-    intensity_plot.y_axis.tick_label_formatter = lambda x: ('%.1f'%(x*1e6))
-    intensity_plot.overlays.append(PlotLabel('Power of transmitted beam', component=intensity_plot, font = 'swiss 16', overlay_position='top'))
+    intensity_plot.y_axis.tick_label_formatter = lambda x: ('%.1e'%(x*1e6))
+    intensity_plot.overlays.append(PlotLabel('Transmission power', component=intensity_plot, font = 'swiss 16', overlay_position='top'))
     
     
     container = VPlotContainer(use_backbuffer = True)
@@ -251,6 +250,7 @@ def create_plot(value_ds, index_ds, horizontal_val_ds, horizontal_index_ds, int_
     container_h.add(intensity_plot)
     return container_h 
 
-gui=OpticalAxisMainGUI()
-gui.configure_traits()
+if __name__ == '__main__':
+    gui=OpticalAxisMainGUI()
+    gui.configure_traits()
         

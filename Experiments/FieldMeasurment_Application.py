@@ -271,8 +271,8 @@ class FieldDataController(HasTraits):
                         padding=0)      
         colorbar.padding_top = plot.padding_top
         colorbar.padding_bottom = plot.padding_bottom
-        colorbar.padding_left = 30
-        colorbar.padding_right = 35                                         
+        colorbar.padding_left = 35
+        colorbar.padding_right = 30                                         
         colorbar._axis.tick_label_formatter = lambda x: ('%.0e'%x)                     
                              
         rplot = Plot(self.plot_data)
@@ -293,7 +293,7 @@ class FieldDataController(HasTraits):
         colorbar_rplot.padding_top = plot.padding_top
         colorbar_rplot.padding_bottom = plot.padding_bottom
         colorbar_rplot.padding_right = 20
-        colorbar_rplot.padding_left = 30    
+        colorbar_rplot.padding_left = 35    
         colorbar_rplot._axis.tick_label_formatter = lambda x: ('%.0e'%x) 
            
         sec_plot = Plot(self.plot_data)
@@ -314,7 +314,7 @@ class FieldDataController(HasTraits):
         colorbar_sec_plot.padding_top = plot.padding_top
         colorbar_sec_plot.padding_bottom = plot.padding_bottom
         colorbar_sec_plot.padding_right = 20
-        colorbar_sec_plot.padding_left = 30    
+        colorbar_sec_plot.padding_left = 35    
         colorbar_sec_plot._axis.tick_label_formatter = lambda x: ('%.0e'%x)    
         container = HPlotContainer(use_backbuffer = True)
         container.add(plot)
@@ -384,7 +384,11 @@ class FieldDataController(HasTraits):
     def update_rplot(self,name,old,new):
         if self.plot_data and new.ndim > 1:
             self.create_plot_component()
-
+            
+    @on_trait_change('model.intens_xy')        
+    def update_sec_plot(self,name,old,new):
+        if self.plot_data and new.ndim > 1:
+            self.create_plot_component()
     def save_file(self):
         """
         Callback for the 'Save Image' menu option.

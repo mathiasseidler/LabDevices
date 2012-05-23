@@ -24,12 +24,12 @@ from enthought.enable.api import ComponentEditor, Component
 
 from threading import Thread
 import thread, os
-import datetime, time
+import datetime 
+import time
 from Devices.TranslationalStage_3Axes import TranslationalStage_3Axes
 from Devices.Thorlabs_PM100D import Thorlabs_PM100D
 from matplotlib import rc
 from time import sleep
-
 from enthought.traits.ui.menu import Action, CloseAction, Menu, \
                                      MenuBar, NoButtons, Separator
 
@@ -173,9 +173,10 @@ class GetHorizontalPlaneThread(Thread):
         stage.AG_UC2_1.print_step_amplitudes()
         stage.AG_UC2_2.print_step_amplitudes()
         
-        date = time.strftime('%y-%m-%d')
-        time = time.strftime('%H:%M:%S')
-        folder = '../data/lensed_snom/' + date + '/' + time + '/'
+        f_date = time.strftime('%y-%m-%d')
+        f_time = time.strftime('%H_%M_%S')
+        f_base = '../data/'
+        folder = f_base + f_date + '/' + f_time + '/'
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -186,7 +187,11 @@ class GetHorizontalPlaneThread(Thread):
             for i in range(0, stage_config.bw_steps):
                 for j in range(0, stage_config.side_steps):
                     if self.wants_abort:
-                        if len(listdir_nohidden(folder)) == 0:
+                        counter = 0
+                        for f in os.listdir(folder):
+                            if f.endswith('npy'):
+                                counter += 1
+                        if counter == 0:
                             import shutil
                             shutil.rmtree(folder)
                         return

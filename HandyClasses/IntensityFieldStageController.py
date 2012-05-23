@@ -92,7 +92,8 @@ def go_to_vertical_max(power_meter, stage, intensity_treshold=1e-6):
     mean, stdev, var = take_averaged_measurement(power_meter)
     pow = np.array([mean])
     std = np.array([stdev])
-    while positive_slope:
+    t = time.time()
+    while positive_slope and (time.time() - t) < 20:
         stage.up(1)
         mean, stdev, var = take_averaged_measurement(power_meter)
         pow = np.append(pow, mean)
@@ -110,7 +111,8 @@ def go_to_horizontal_max(power_meter, stage, intensity_treshold=1e-6):
     mean, stdev, var = take_averaged_measurement(power_meter)
     pow = np.array([mean])
     std = np.array([stdev])
-    while positive_slope:
+    t = time.time()
+    while positive_slope and (time.time() - t) < 20:
         stage.left(1)
         mean, stdev, var = take_averaged_measurement(power_meter)
         pow = np.append(pow, mean)

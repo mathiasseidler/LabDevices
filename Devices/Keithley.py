@@ -31,7 +31,15 @@ class K2602A(object):
         '''
         voltage in [V]
         '''
+        self.a_set_DCVolts_as_source()
         self.instr.write('smua.source.levelv = ' + str(voltage))
+        
+    def a_set_current(self, voltage):
+        '''
+        current in [A]
+        '''
+        self.a_set_DCAmps_as_source()
+        self.instr.write('smua.source.leveli = ' + str(voltage))
     
     def a_set_current_limit(self, limit):
         self.instr.write('smua.source.limiti = ' + str(limit))
@@ -39,5 +47,10 @@ class K2602A(object):
     def a_on_output(self):
         self.instr.write('smua.source.output = smua.OUTPUT_ON')
         
-    def a_on_output(self):
+    def a_off_output(self):
         self.instr.write('smua.source.output = smua.OUTPUT_OFF')
+    
+    def a_set_DCAmps_as_source(self):
+        self.instr.write('smua.source.func = smua.OUTPUT_DCAMPS')
+    def a_set_DCVolts_as_source(self):
+        self.instr.write('smua.source.func = smua.OUTPUT_DCVolts')

@@ -83,7 +83,11 @@ def find_horizontal_max_jog(power_meter, stage, intensity_treshold=1e-5):
     
 def find_max(power_meter, stage, intensity_treshold=1e-5):
     power, height =go_to_vertical_max(power_meter, stage, intensity_treshold = intensity_treshold)
+    #stage.AG_UC2_2.move_to_limit(1,-2)
+    stage.down(1)
     power, horizontal_pos = go_to_horizontal_max(power_meter, stage,intensity_treshold = intensity_treshold)
+    #stage.AG_UC2_1.move_to_limit(1,-2)
+    stage.right(1)
     return power, height, horizontal_pos
 
 def go_to_vertical_max(power_meter, stage, intensity_treshold=1e-6):
@@ -93,15 +97,15 @@ def go_to_vertical_max(power_meter, stage, intensity_treshold=1e-6):
     pow = np.array([mean])
     std = np.array([stdev])
     t = time.time()
-    while positive_slope and (time.time() - t) < 20:
+    while positive_slope and (time.time() - t) < 10:
         stage.up(1)
         mean, stdev, var = take_averaged_measurement(power_meter)
         pow = np.append(pow, mean)
         std = np.append(std,stdev)
-        if pow[-1] + std[-1] < pow[-2] and pow[-2] > intensity_treshold:
+        if pow[-1]+ std[-1] < pow[-2] and pow[-2] > intensity_treshold:
             positive_slope = False
             break
-    print 'vertical: ', pow
+    #print 'vertical: ', pow
     height = pow.argmax()
     return pow[height], height
 
@@ -112,7 +116,7 @@ def go_to_horizontal_max(power_meter, stage, intensity_treshold=1e-6):
     pow = np.array([mean])
     std = np.array([stdev])
     t = time.time()
-    while positive_slope and (time.time() - t) < 20:
+    while positive_slope and (time.time() - t) < 10:
         stage.left(1)
         mean, stdev, var = take_averaged_measurement(power_meter)
         pow = np.append(pow, mean)
@@ -120,7 +124,7 @@ def go_to_horizontal_max(power_meter, stage, intensity_treshold=1e-6):
         if pow[-1] + std[-1] < pow[-2] and pow[-2] > intensity_treshold:
             positive_slope = False
             break
-    print 'vertical: ', pow
+    #print 'vertical: ', pow
     pos = pow.argmax()
     return pow[pos], pos  
        

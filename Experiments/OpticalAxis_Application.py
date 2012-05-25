@@ -3,7 +3,7 @@ Created on 13.04.2012
 
 @author: Mathias
 '''
-from enthought.traits.api import HasTraits, Event, Array, Str, Instance, Button, on_trait_change, Int
+from enthought.traits.api import HasTraits, Event, Array, Str, Float, Instance, Button, on_trait_change, Int
 from enthought.traits.ui.api import View, Item, ButtonEditor, Action, Tabbed, Group
 from enthought.enable.api import Component, ComponentEditor
 from threading import Thread
@@ -44,6 +44,7 @@ class AcquireThread(Thread):
         self.find_axes()
     
     def find_axes(self):
+        print self.int_treshold
         power_meter  = Thorlabs_PM100D("PM100D")
         stage        = TranslationalStage_3Axes('COM3','COM4')
         stage.AG_UC2_1.set_step_amplitude(1, 20)
@@ -54,7 +55,7 @@ class AcquireThread(Thread):
         self.model.height =  np.array([])
         self.model.horizontal_pos = np.array([])
         while not self.wants_abort == True:
-            pow, height, hor_pos = find_max(power_meter, stage, intensity_treshold = 5e-9)
+            pow, height, hor_pos = find_max(power_meter, stage, intensity_treshold = self.int_treshold)
             print pow, height, hor_pos
             self.model.power_data = np.append(self.model.power_data, pow)
             self.model.horizontal_pos = np.append(self.model.horizontal_pos, hor_pos)
@@ -107,7 +108,7 @@ class OpticalAxisMainGUI(HasTraits):
     data_model = Instance(FieldData,())
     
     # settings for the intensity input
-    intensity_treshold = Int(1e-9)
+    intensity_treshold = Float(1e-10)
     # plot container
     plot_container = Instance(Component)
     plot_size=(600,400)
@@ -153,6 +154,7 @@ class OpticalAxisMainGUI(HasTraits):
             self.capture_thread.wants_abort = False
             self.capture_thread.model = self.data_model
             self.capture_thread.gui = self
+            self.capture_thread.int_treshold = self.intensity_treshold
             self.capture_thread.start()
             self.button_label_tc = 'Stop acquisition'
             

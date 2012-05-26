@@ -140,7 +140,7 @@ class GetBeamSectionThread(Thread):
         stage.AG_UC2_2.print_step_amplitudes()
                 
         field_data.intens_xy = zeros((stage_config.bw_steps, stage_config.side_steps))
-        for i in range(0, stage_config.bw_steps):
+        for i in range(0, stage_config.up_steps):
             for j in range(0, stage_config.side_steps):
                 if self.wants_abort:
                     return

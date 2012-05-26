@@ -24,7 +24,14 @@ class ArrayEditorTest ( HasTraits ):
 
 
 if __name__ == '__main__':
-    ArrayEditorTest().configure_traits() 
+    from Devices.Keithley import K2602A
+    k = K2602A('Keithley2602A')
+    k.a_set_current(0)
+    k.a_on_output()
+    print k.a_get_voltage()
+    for i in range(0,10):
+        print k.a_get_voltage()
+    k.a_off_output()
 
     
     

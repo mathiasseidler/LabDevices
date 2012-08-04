@@ -23,7 +23,7 @@ class Thorlabs_PM100D:
             self.instr=visa.Instrument(self.port)
             self.instr.write('pow:unit W')
             self.instr.write('conf:pow')
-            print 'ThorlabsPM100D@Port::' + str(port) + ' connected'
+            #print 'ThorlabsPM100D@Port::' + str(port) + ' connected'
         except:
             print 'Unexpected error: ', sys.exc_info()[0]
               
@@ -33,7 +33,7 @@ class Thorlabs_PM100D:
         '''
         try:
             self.instr.close()
-            print('ThorlabsPM100D' + '@Port::' + self.port + ' connection closed')
+            #print('ThorlabsPM100D' + '@Port::' + self.port + ' connection closed')
         except:
             print 'Unexpected error: ', sys.exc_info()[0]  
         
